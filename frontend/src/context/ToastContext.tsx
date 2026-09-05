@@ -45,9 +45,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ success, error, info, warning }}>
       {children}
-      {/* Fixed top-right notification container: positioned at top: 80px, right: 24px, responsive on mobile */}
+      {/* Fixed top-right notification container: positioned 16px below the fixed header using --header-height */}
       <div
-        className="fixed top-20 right-4 sm:right-6 z-[100] flex flex-col gap-2.5 max-w-[360px] w-[calc(100vw-2rem)] sm:w-88 pointer-events-none"
+        style={{
+          top: 'calc(var(--header-height, 56px) + 16px)',
+        }}
+        className="fixed right-4 sm:right-6 z-40 flex flex-col gap-2.5 max-w-[360px] w-[calc(100vw-2rem)] sm:w-88 pointer-events-none"
         aria-live="polite"
         role="region"
       >

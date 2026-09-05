@@ -5,6 +5,7 @@
 :root {
   --background: #fafaf9;
   --foreground: #09090b;
+  --header-height: 56px;
 }
 
 body {
