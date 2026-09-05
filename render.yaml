@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: spacesync-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: https://spacesync-frontend.vercel.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spacesync-postgres
+          property: connectionString
+
+databases:
+  - name: spacesync-postgres
+    plan: free
+    databaseName: spacesync_db
+    user: spacesync_user
