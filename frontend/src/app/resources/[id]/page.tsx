@@ -71,6 +71,7 @@ export default function ResourceDetailsPage() {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + offsetDays);
     setSelectedDate(d.toISOString().split('T')[0]);
+    setConflictError('');
   };
 
   const getIsoTimestamp = (hour: number) => {
@@ -111,7 +112,7 @@ export default function ResourceDetailsPage() {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      toast.error('Sign in required to confirm booking.');
+      toast.error('SIGN IN REQUIRED', 'Sign in required to confirm booking.');
       router.push('/login');
       return;
     }
@@ -119,21 +120,55 @@ export default function ResourceDetailsPage() {
     setConflictError('');
     setSubmitting(true);
 
+    const bookingStartIso = getIsoTimestamp(startHour);
+    const bookingEndIso = getIsoTimestamp(endHour);
+    const timeFormatted = `${String(startHour).padStart(2, '0')}:00 → ${String(endHour).padStart(2, '0')}:00`;
+    const resourceName = resource?.name || 'Resource';
+
     try {
       await api.post('/bookings', {
         resource_id: id,
-        start_time: getIsoTimestamp(startHour),
-        end_time: getIsoTimestamp(endHour),
+        start_time: bookingStartIso,
+        end_time: bookingEndIso,
         purpose: purpose.trim(),
       });
 
-      toast.success('Reservation confirmed. Concurrency check passed.');
-      await fetchResourceData();
+      // 1. Clear any conflict state
+      setConflictError('');
+
+      // 2. Show polished success notification clearly communicating success
+      toast.success(
+        'RESERVATION CONFIRMED',
+        `${resourceName}\n${timeFormatted}`
+      );
+
+      // 3. UI refresh: fetch updated availability
+      const availData = await api.get<ResourceAvailabilityResponse>(
+        `/resources/${id}/availability?date=${selectedDate}`
+      );
+      setAvailability(availData);
+
+      // 4. Advance form selection to next available slot on that date
+      // so the user is not left viewing the slot they just booked as a conflict
+      const nextSlot =
+        availData.slots.find((s) => {
+          const h = parseInt(s.hour.split(':')[0], 10);
+          return h >= endHour && s.isAvailable;
+        }) || availData.slots.find((s) => s.isAvailable);
+
+      if (nextSlot) {
+        const nextHour = parseInt(nextSlot.hour.split(':')[0], 10);
+        setStartHour(nextHour);
+        setEndHour(nextHour + 1);
+      }
     } catch (err: any) {
       if (err.statusCode === 409) {
-        setConflictError(err.message || 'This resource is already booked during the selected time.');
+        const conflictMsg =
+          err.message || 'This resource is already reserved during the selected time.';
+        setConflictError(conflictMsg);
+        toast.error('BOOKING UNAVAILABLE', conflictMsg);
       } else {
-        toast.error(err.message || 'Failed to create reservation');
+        toast.error('RESERVATION FAILED', err.message || 'Failed to create reservation');
       }
     } finally {
       setSubmitting(false);
@@ -244,7 +279,10 @@ export default function ResourceDetailsPage() {
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setConflictError('');
+                  }}
                   className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs focus:outline-none"
                 />
               </div>
@@ -261,6 +299,7 @@ export default function ResourceDetailsPage() {
                       const v = Number(e.target.value);
                       setStartHour(v);
                       if (endHour <= v) setEndHour(v + 1);
+                      setConflictError('');
                     }}
                     className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs bg-white focus:outline-none"
                   >
@@ -278,7 +317,10 @@ export default function ResourceDetailsPage() {
                   </label>
                   <select
                     value={endHour}
-                    onChange={(e) => setEndHour(Number(e.target.value))}
+                    onChange={(e) => {
+                      setEndHour(Number(e.target.value));
+                      setConflictError('');
+                    }}
                     className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs bg-white focus:outline-none"
                   >
                     {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((h) => (
@@ -327,8 +369,9 @@ export default function ResourceDetailsPage() {
                       setStartHour(10);
                       setEndHour(12);
                       setPurpose('Architecture Review 10:00-12:00');
+                      setConflictError('');
                     }}
-                    className="px-2 py-1 border border-neutral-200 hover:border-charcoal-900 text-charcoal-800"
+                    className="px-2 py-1 border border-neutral-200 hover:border-charcoal-900 text-charcoal-800 cursor-pointer"
                   >
                     10:00–12:00 (Base)
                   </button>
@@ -338,8 +381,9 @@ export default function ResourceDetailsPage() {
                       setStartHour(11);
                       setEndHour(13);
                       setPurpose('Conflict Attempt 11:00-13:00');
+                      setConflictError('');
                     }}
-                    className="px-2 py-1 border border-rose-300 text-rose-800 hover:bg-rose-50"
+                    className="px-2 py-1 border border-rose-300 text-rose-800 hover:bg-rose-50 cursor-pointer"
                   >
                     11:00–13:00 (Conflict)
                   </button>
@@ -349,8 +393,9 @@ export default function ResourceDetailsPage() {
                       setStartHour(12);
                       setEndHour(14);
                       setPurpose('Back-to-Back 12:00-14:00');
+                      setConflictError('');
                     }}
-                    className="px-2 py-1 border border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                    className="px-2 py-1 border border-emerald-300 text-emerald-800 hover:bg-emerald-50 cursor-pointer"
                   >
                     12:00–14:00 (Allowed)
                   </button>
@@ -361,8 +406,8 @@ export default function ResourceDetailsPage() {
               {isAuthenticated ? (
                 <button
                   type="submit"
-                  disabled={submitting || !!clientCollision?.hasConflict}
-                  className="w-full py-3 bg-charcoal-900 hover:bg-charcoal-800 text-white font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                  disabled={submitting}
+                  className="w-full py-3 bg-charcoal-900 hover:bg-charcoal-800 text-white font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Confirming...' : 'Confirm Reservation'}
                 </button>

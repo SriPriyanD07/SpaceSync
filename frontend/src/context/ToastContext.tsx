@@ -1,21 +1,22 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { CheckCircle2, AlertCircle, Info, X, AlertTriangle } from 'lucide-react';
+import { X } from 'lucide-react';
 
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
-interface Toast {
+export interface Toast {
   id: string;
   type: ToastType;
-  message: string;
+  title: string;
+  description?: string;
 }
 
-interface ToastContextType {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-  warning: (message: string) => void;
+export interface ToastContextType {
+  success: (title: string, description?: string) => void;
+  error: (title: string, description?: string) => void;
+  info: (title: string, description?: string) => void;
+  warning: (title: string, description?: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -23,9 +24,9 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((type: ToastType, message: string) => {
+  const addToast = useCallback((type: ToastType, title: string, description?: string) => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, type, message }]);
+    setToasts((prev) => [...prev, { id, type, title, description }]);
 
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -36,43 +37,60 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const success = useCallback((msg: string) => addToast('success', msg), [addToast]);
-  const error = useCallback((msg: string) => addToast('error', msg), [addToast]);
-  const info = useCallback((msg: string) => addToast('info', msg), [addToast]);
-  const warning = useCallback((msg: string) => addToast('warning', msg), [addToast]);
+  const success = useCallback((title: string, description?: string) => addToast('success', title, description), [addToast]);
+  const error = useCallback((title: string, description?: string) => addToast('error', title, description), [addToast]);
+  const info = useCallback((title: string, description?: string) => addToast('info', title, description), [addToast]);
+  const warning = useCallback((title: string, description?: string) => addToast('warning', title, description), [addToast]);
 
   return (
     <ToastContext.Provider value={{ success, error, info, warning }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none px-4 sm:px-0">
+      {/* Fixed top-right notification container: positioned at top: 80px, right: 24px, responsive on mobile */}
+      <div
+        className="fixed top-20 right-4 sm:right-6 z-[100] flex flex-col gap-2.5 max-w-[360px] w-[calc(100vw-2rem)] sm:w-88 pointer-events-none"
+        aria-live="polite"
+        role="region"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl border backdrop-blur-md transition-all duration-300 animate-in slide-in-from-bottom-2 ${
-              t.type === 'success'
-                ? 'bg-emerald-950/90 text-emerald-100 border-emerald-800/60'
-                : t.type === 'error'
-                ? 'bg-rose-950/90 text-rose-100 border-rose-800/60'
-                : t.type === 'warning'
-                ? 'bg-amber-950/90 text-amber-100 border-amber-800/60'
-                : 'bg-slate-900/90 text-slate-100 border-slate-700/60'
-            }`}
+            className="pointer-events-auto bg-white border border-neutral-300 shadow-md p-3.5 sm:p-4 text-xs font-mono transition-all duration-300 animate-in fade-in slide-in-from-top-2"
           >
-            <div className="shrink-0 mt-0.5">
-              {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-              {t.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400" />}
-              {t.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-400" />}
-              {t.type === 'info' && <Info className="w-5 h-5 text-blue-400" />}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    t.type === 'success'
+                      ? 'bg-emerald-600'
+                      : t.type === 'error'
+                      ? 'bg-rose-600'
+                      : t.type === 'warning'
+                      ? 'bg-amber-600'
+                      : 'bg-neutral-500'
+                  }`}
+                />
+                <span className="font-mono text-[11px] font-bold tracking-wider uppercase text-neutral-950">
+                  {t.title}
+                </span>
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-neutral-400 hover:text-neutral-900 p-0.5 transition-colors cursor-pointer"
+                aria-label="Close notification"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="flex-1 text-sm leading-snug font-medium break-words">
-              {t.message}
-            </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              className="shrink-0 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
+            {t.description && (
+              <div className="pl-4 mt-1.5 font-sans text-xs text-neutral-600 space-y-0.5 leading-relaxed">
+                {t.description.split('\n').map((line, idx) => (
+                  <div key={idx} className={idx > 0 ? 'font-mono text-[11px] text-neutral-500' : ''}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -87,3 +105,4 @@ export function useToast() {
   }
   return context;
 }
+
