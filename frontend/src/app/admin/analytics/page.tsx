@@ -8,13 +8,8 @@ import { api } from '../../../services/api';
 import { UtilizationData } from '../../../types';
 import { RESOURCE_TYPE_LABELS } from '../../../utils/format';
 import {
-  BarChart3,
   ChevronLeft,
-  Clock,
-  Layers,
-  Database,
-  TrendingUp,
-  Flame,
+  ArrowUpRight,
 } from 'lucide-react';
 import {
   BarChart,
@@ -58,11 +53,17 @@ export default function AdminAnalyticsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 max-w-7xl mx-auto">
         <LoadingSkeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <LoadingSkeleton className="h-80 rounded-2xl" />
-          <LoadingSkeleton className="h-80 rounded-2xl" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <LoadingSkeleton className="h-28" />
+          <LoadingSkeleton className="h-28" />
+          <LoadingSkeleton className="h-28" />
+          <LoadingSkeleton className="h-28" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <LoadingSkeleton className="h-80" />
+          <LoadingSkeleton className="h-80" />
         </div>
       </div>
     );
@@ -80,51 +81,136 @@ export default function AdminAnalyticsPage() {
     Bookings: parseInt(t.booking_count, 10),
   }));
 
+  // Aggregated KPIs
+  const totalBookedHours = (data?.resourceUtilization || []).reduce(
+    (acc, r) => acc + (parseFloat(r.booked_hours as any) || 0),
+    0
+  );
+
+  const totalBookingsCount = (data?.resourceUtilization || []).reduce(
+    (acc, r) => acc + (parseInt(r.booking_count as any, 10) || 0),
+    0
+  );
+
+  const highestHour = (data?.peakHours || []).reduce(
+    (max, p) => (parseInt(p.count, 10) > parseInt(max.count || '0', 10) ? p : max),
+    { hour: 0, count: '0' }
+  );
+
+  const topCategory = (data?.byResourceType || []).reduce(
+    (max, t) => (parseInt(t.booking_count, 10) > parseInt(max.booking_count || '0', 10) ? t : max),
+    { type: 'None', booking_count: '0' }
+  );
+
+  const maxHours = Math.max(
+    1,
+    ...(data?.resourceUtilization || []).map((r) => parseFloat(r.booked_hours as any) || 0)
+  );
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-          <Link href="/admin" className="hover:text-indigo-600 flex items-center gap-1">
-            <ChevronLeft className="w-3.5 h-3.5" /> Back to Admin Hub
-          </Link>
+    <div className="space-y-12 animate-in fade-in duration-300 max-w-7xl mx-auto pb-16">
+      {/* Masthead */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-[11px] text-neutral-400 uppercase tracking-widest mb-3">
+            <Link href="/admin" className="hover:text-neutral-900 transition-colors flex items-center gap-1">
+              <ChevronLeft className="w-3.5 h-3.5" /> ADMIN OPERATIONS
+            </Link>
+            <span>/</span>
+            <span className="text-neutral-900">INTELLIGENCE</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-neutral-950 font-serif">
+            Operational Intelligence
+          </h1>
+          <p className="text-neutral-500 text-sm mt-1 max-w-2xl font-sans">
+            Audited occupancy metrics, hourly congestion distributions, and resource utilization hours calculated directly from relational storage.
+          </p>
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Deep Utilization & Operational Intelligence
-        </h1>
-        <p className="text-slate-500 text-sm">
-          Granular occupancy metrics calculated directly from PostgreSQL queries without caching.
-        </p>
+
+        <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider text-right">
+          <div>ENGINE: LIVE_CALCULATED</div>
+          <div className="text-neutral-950">ZERO_CACHE_AUDIT</div>
+        </div>
       </div>
 
-      {/* Analytics Charts */}
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 border border-neutral-200 bg-white">
+        <div className="p-6 border-r border-b lg:border-b-0 border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Cumulative Reserved Hours</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">
+            {totalBookedHours.toFixed(1)} <span className="text-sm font-sans text-neutral-400">hrs</span>
+          </div>
+          <div className="text-xs text-neutral-500 mt-1">Across all facilities</div>
+        </div>
+        <div className="p-6 border-b lg:border-b-0 lg:border-r border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Confirmed Allocations</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">{totalBookingsCount}</div>
+          <div className="text-xs text-neutral-500 mt-1">Distinct reserved sessions</div>
+        </div>
+        <div className="p-6 border-r border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Peak Density Slot</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">
+            {highestHour.count !== '0' ? `${String(highestHour.hour).padStart(2, '0')}:00` : '—'}
+          </div>
+          <div className="text-xs text-neutral-500 mt-1">{highestHour.count} sessions clustered</div>
+        </div>
+        <div className="p-6">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Dominant Asset Class</div>
+          <div className="text-xl font-light text-neutral-950 mt-2 truncate font-sans">
+            {(RESOURCE_TYPE_LABELS as Record<string, string>)[topCategory.type] || topCategory.type}
+          </div>
+          <div className="text-xs text-neutral-500 mt-1">{topCategory.booking_count} total reservations</div>
+        </div>
+      </div>
+
+      {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Peak Hours Chart */}
-        <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="border border-neutral-200 bg-white p-6 sm:p-8 space-y-6">
+          <div className="flex items-start justify-between border-b border-neutral-100 pb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-500" />
-                Peak Booking Periods
+              <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-950">
+                01 / Hourly Congestion Distribution
               </h3>
-              <p className="text-xs text-slate-500">Distribution of confirmed reservations across hours of the day</p>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Session concentration indexed across 24 hours
+              </p>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">PostgreSQL EXTRACT(HOUR)</span>
+            <span className="font-mono text-[10px] text-neutral-400 uppercase">EXTRACT(HOUR)</span>
           </div>
 
-          <div className="h-72 w-full pt-4">
+          <div className="h-64 w-full">
             {peakChartData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No peak hour data available
+              <div className="h-full flex items-center justify-center font-mono text-xs text-neutral-400">
+                NO HOURLY LOGS RECORDED
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={peakChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="Bookings" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="hour"
+                    tick={{ fontSize: 10, fill: '#737373', fontFamily: 'monospace' }}
+                    axisLine={{ stroke: '#e5e5e5' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fill: '#737373', fontFamily: 'monospace' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#09090b',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0px',
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                    }}
+                  />
+                  <Bar dataKey="Bookings" fill="#18181b" radius={[0, 0, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -132,31 +218,54 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {/* Bookings By Resource Type */}
-        <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="border border-neutral-200 bg-white p-6 sm:p-8 space-y-6">
+          <div className="flex items-start justify-between border-b border-neutral-100 pb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-500" />
-                Reservations by Asset Class
+              <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-950">
+                02 / Asset Class Occupancy Volume
               </h3>
-              <p className="text-xs text-slate-500">Occupancy demand across meeting rooms, compute, and lab pods</p>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Allocation balance between rooms, pods, and hardware
+              </p>
             </div>
-            <span className="text-[11px] font-mono text-slate-400">GROUP BY r.type</span>
+            <span className="font-mono text-[10px] text-neutral-400 uppercase">GROUP BY TYPE</span>
           </div>
 
-          <div className="h-72 w-full pt-4">
+          <div className="h-64 w-full">
             {typeChartData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No classification data available
+              <div className="h-full flex items-center justify-center font-mono text-xs text-neutral-400">
+                NO CLASSIFICATION DATA
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={typeChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="type" type="category" width={120} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="Bookings" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                  <CartesianGrid strokeDasharray="2 2" horizontal={false} stroke="#f0f0f0" />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fill: '#737373', fontFamily: 'monospace' }}
+                    axisLine={{ stroke: '#e5e5e5' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    dataKey="type"
+                    type="category"
+                    width={110}
+                    tick={{ fontSize: 10, fill: '#737373', fontFamily: 'monospace' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#09090b',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0px',
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                    }}
+                  />
+                  <Bar dataKey="Bookings" fill="#27272a" radius={[0, 0, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -165,48 +274,80 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Utilization Breakdown Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4 p-6 sm:p-7">
-        <div>
-          <h3 className="text-base font-bold text-slate-900">Per-Resource Utilization Ledger</h3>
-          <p className="text-xs text-slate-500">
-            Total bookings and accumulated reservation hours per facility
-          </p>
+      <div className="border border-neutral-200 bg-white overflow-hidden space-y-4">
+        <div className="p-6 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="font-mono text-xs uppercase tracking-widest text-neutral-950">
+              03 / Per-Resource Utilization Ledger
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Cumulative session count and total occupied duration per asset
+            </p>
+          </div>
+          <span className="font-mono text-[10px] text-neutral-400 uppercase">
+            {(data?.resourceUtilization || []).length} ASSETS MONITORED
+          </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
+            <thead className="bg-neutral-50/80 border-b border-neutral-200 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
               <tr>
-                <th className="py-3 px-4">Resource</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4">Capacity</th>
-                <th className="py-3 px-4">Total Bookings</th>
-                <th className="py-3 px-4">Booked Hours</th>
-                <th className="py-3 px-4 text-right">Direct Link</th>
+                <th className="py-3 px-4 w-12 text-neutral-400">REF</th>
+                <th className="py-3 px-4 font-normal">FACILITY DESIGNATION</th>
+                <th className="py-3 px-4 font-normal">CLASSIFICATION</th>
+                <th className="py-3 px-4 font-normal text-right">CAPACITY</th>
+                <th className="py-3 px-4 font-normal text-right">TOTAL SESSIONS</th>
+                <th className="py-3 px-4 font-normal">CUMULATIVE OCCUPANCY</th>
+                <th className="py-3 px-4 font-normal text-right">SPEC</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {(data?.resourceUtilization || []).map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{r.name}</td>
-                  <td className="py-3.5 px-4">{RESOURCE_TYPE_LABELS[r.type] || r.type}</td>
-                  <td className="py-3.5 px-4 font-semibold">{r.capacity}</td>
-                  <td className="py-3.5 px-4">
-                    <span className="font-mono font-semibold text-indigo-700">{r.booking_count}</span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="font-mono font-semibold text-emerald-700">{r.booked_hours} hrs</span>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <Link
-                      href={`/resources/${r.id}`}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
-                    >
-                      View Timeline →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-neutral-100">
+              {(data?.resourceUtilization || []).map((r, idx) => {
+                const hours = parseFloat(r.booked_hours as any) || 0;
+                const percentage = Math.min(100, Math.round((hours / maxHours) * 100));
+
+                return (
+                  <tr key={r.id} className="hover:bg-neutral-50/60 transition-colors group">
+                    <td className="py-4 px-4 font-mono text-[11px] text-neutral-400">
+                      {String(idx + 1).padStart(2, '0')}
+                    </td>
+                    <td className="py-4 px-4 font-medium text-neutral-950">{r.name}</td>
+                    <td className="py-4 px-4">
+                      <span className="font-mono text-[11px] text-neutral-600 uppercase">
+                        {RESOURCE_TYPE_LABELS[r.type] || r.type}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right font-mono text-[11px] text-neutral-600">
+                      {r.capacity} pax
+                    </td>
+                    <td className="py-4 px-4 text-right font-mono text-[11px] text-neutral-950">
+                      {r.booking_count}
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-[11px] text-neutral-950 min-w-16">
+                          {hours.toFixed(1)} hrs
+                        </span>
+                        <div className="flex-1 max-w-36 h-1.5 bg-neutral-100 overflow-hidden">
+                          <div
+                            className="h-full bg-neutral-900 transition-all duration-500"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <Link
+                        href={`/resources/${r.id}`}
+                        className="font-mono text-[11px] text-neutral-900 hover:text-neutral-600 inline-flex items-center gap-0.5"
+                      >
+                        TIMELINE <ArrowUpRight className="w-3 h-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -214,3 +355,4 @@ export default function AdminAnalyticsPage() {
     </div>
   );
 }
+

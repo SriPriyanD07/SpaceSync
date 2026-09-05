@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
-import { Zap, Lock, Mail, ArrowRight, UserCheck } from 'lucide-react';
+import { ArrowRight, UserCheck } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, quickLogin } = useAuth();
@@ -19,117 +19,124 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Login failed. Please check credentials.');
+      setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto py-12 px-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 items-center justify-center mb-1">
-            <Zap className="w-6 h-6 fill-current" />
+    <div className="min-h-[75vh] grid grid-cols-1 lg:grid-cols-12 border border-neutral-200 bg-white overflow-hidden animate-in fade-in duration-300">
+      {/* Left Column: Brand Statement & Spatial Identity */}
+      <div className="lg:col-span-6 bg-charcoal-950 text-white p-8 sm:p-14 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-charcoal-900">
+        <div className="space-y-4">
+          <div className="font-mono text-[10px] tracking-widest text-neutral-500 uppercase">
+            AUTHENTICATION PROTOCOL // 01
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sign in to SpaceSync</h1>
-          <p className="text-xs text-slate-500">Access your shared resource booking dashboard</p>
+          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight uppercase leading-none">
+            ACCESS YOUR <br />
+            <span className="text-neutral-500">WORKSPACE.</span>
+          </h2>
+          <p className="font-sans text-xs sm:text-sm text-neutral-400 max-w-sm leading-relaxed">
+            Centralized reservation management across conference rooms, laboratories, and compute clusters.
+          </p>
+        </div>
+
+        <div className="pt-12 font-mono text-[10px] text-neutral-500 space-y-1 border-t border-charcoal-900">
+          <div>TOPOLOGY: 7 ACTIVE PHYSICAL ZONES</div>
+          <div>SECURITY: STATELESS JWT • BCRYPT PASSWORDS</div>
+          <div>DOUBLE-BOOKING: POSTGRESQL BTREE_GIST ENFORCED</div>
+        </div>
+      </div>
+
+      {/* Right Column: Clean Editorial Form */}
+      <div className="lg:col-span-6 p-8 sm:p-14 flex flex-col justify-center space-y-8 bg-white">
+        <div className="space-y-1">
+          <div className="font-mono text-[10px] tracking-widest text-neutral-400 uppercase">
+            SIGN IN
+          </div>
+          <h3 className="text-2xl font-bold tracking-tight text-charcoal-900">
+            Welcome back.
+          </h3>
         </div>
 
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
-            {errorMessage}
+          <div className="p-3.5 bg-rose-50 border border-rose-300 font-mono text-xs text-rose-800">
+            [ERROR] {errorMessage}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              Email Address
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
+              Work Email
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Mail className="w-4 h-4" />
-              </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@organization.com"
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-colors"
-              />
-            </div>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@organization.com"
+              className="w-full px-3.5 py-2.5 border border-neutral-300 focus:border-charcoal-900 text-sm focus:outline-none transition-colors"
+            />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Password
-              </label>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                <Lock className="w-4 h-4" />
-              </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-colors"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
+              Password
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-3.5 py-2.5 border border-neutral-300 focus:border-charcoal-900 text-sm focus:outline-none transition-colors"
+            />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm"
+            className="w-full py-3 px-4 bg-charcoal-900 hover:bg-charcoal-800 text-white font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
+            {loading ? 'Authenticating...' : (
               <>
-                Sign In <ArrowRight className="w-4 h-4" />
+                Sign In <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>
         </form>
 
-        {/* Demo One-Click Sign In */}
-        <div className="pt-2 border-t border-slate-100 space-y-3">
-          <div className="text-center">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Quick Demo Personas (1-Click)
-            </span>
+        {/* 1-Click Demo Section */}
+        <div className="pt-4 border-t border-neutral-200 space-y-3">
+          <div className="font-mono text-[10px] tracking-wider text-neutral-400 uppercase">
+            1-Click Demo Evaluation Personas
           </div>
-
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => quickLogin('member1')}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+              className="px-3 py-2 border border-neutral-300 hover:border-charcoal-900 font-mono text-[11px] text-charcoal-800 text-left transition-colors flex items-center justify-between"
             >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Alex (Member)
+              <span>Alex (Member)</span>
+              <span className="text-[9px] text-emerald-700">DEMO</span>
             </button>
             <button
               type="button"
               onClick={() => quickLogin('admin')}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+              className="px-3 py-2 border border-neutral-300 hover:border-charcoal-900 font-mono text-[11px] text-charcoal-800 text-left transition-colors flex items-center justify-between"
             >
-              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-              Admin
+              <span>Admin Console</span>
+              <span className="text-[9px] text-charcoal-900 font-bold">ADMIN</span>
             </button>
           </div>
         </div>
 
-        <div className="text-center text-xs text-slate-500">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="font-semibold text-indigo-600 hover:text-indigo-700">
-            Register here
+        <div className="text-xs text-neutral-500 font-sans">
+          Need an account?{' '}
+          <Link href="/register" className="text-charcoal-900 font-semibold underline">
+            Register new member
           </Link>
         </div>
       </div>

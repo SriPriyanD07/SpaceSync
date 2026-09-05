@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import { CalendarX2 } from 'lucide-react';
 
 interface EmptyStateProps {
   title: string;
@@ -11,16 +10,15 @@ interface EmptyStateProps {
 export function EmptyState({
   title,
   description,
-  icon,
   action,
 }: EmptyStateProps) {
   return (
-    <div className="text-center py-16 px-4 bg-white/60 border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center max-w-lg mx-auto">
-      <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4">
-        {icon || <CalendarX2 className="w-7 h-7" />}
+    <div className="py-16 px-6 text-center border-y border-neutral-200 bg-neutral-50/50 flex flex-col items-center justify-center">
+      <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest mb-1.5">
+        RECORD / STATUS EMPTY
       </div>
-      <h3 className="text-base font-semibold text-slate-900 mb-1">{title}</h3>
-      <p className="text-sm text-slate-500 max-w-sm mb-6 leading-relaxed">{description}</p>
+      <h4 className="text-base font-bold text-charcoal-900 mb-1">{title}</h4>
+      <p className="text-xs text-neutral-500 max-w-sm mb-6 leading-relaxed font-sans">{description}</p>
       {action && <div>{action}</div>}
     </div>
   );

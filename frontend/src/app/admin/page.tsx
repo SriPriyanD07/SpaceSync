@@ -8,20 +8,6 @@ import { api } from '../../services/api';
 import { AdminStats, UtilizationData } from '../../types';
 import { RESOURCE_TYPE_LABELS } from '../../utils/format';
 import {
-  ShieldCheck,
-  Building2,
-  Calendar,
-  Clock,
-  TrendingUp,
-  AlertTriangle,
-  Award,
-  Layers,
-  Settings,
-  BarChart3,
-  ArrowRight,
-  Sparkles,
-} from 'lucide-react';
-import {
   BarChart,
   Bar,
   XAxis,
@@ -29,13 +15,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
 } from 'recharts';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
+import { ArrowUpRight, Plus, Settings } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  const { user, isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -66,7 +51,7 @@ export default function AdminDashboardPage() {
       setStats(statsData);
       setUtilization(utilData);
     } catch (err) {
-      console.error('Failed to load admin stats', err);
+      console.error('Failed to load admin operations data', err);
     } finally {
       setLoading(false);
     }
@@ -74,213 +59,208 @@ export default function AdminDashboardPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 py-8">
         <LoadingSkeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <LoadingSkeleton className="h-28" />
-          <LoadingSkeleton className="h-28" />
-          <LoadingSkeleton className="h-28" />
-          <LoadingSkeleton className="h-28" />
-        </div>
-        <LoadingSkeleton className="h-72 rounded-2xl" />
+        <LoadingSkeleton className="h-48 w-full" />
+        <LoadingSkeleton className="h-72 w-full" />
       </div>
     );
   }
 
-  // Format volume data for chart
-  const chartVolumeData = utilization?.volumeOverTime.map((v) => ({
-    date: v.date.substring(5), // 'MM-DD'
+  // Calculate overall utilization percentage
+  const totalRes = stats?.resources.total || 1;
+  const activeRes = stats?.resources.active || 1;
+  const utilPercent = Math.round((activeRes / totalRes) * 100);
+
+  // Format booking activity chart data
+  const volumeData = (utilization?.volumeOverTime || []).map((v) => ({
+    date: v.date.substring(5),
     Confirmed: parseInt(v.confirmed, 10),
     Cancelled: parseInt(v.cancelled, 10),
-  })) || [];
+  }));
 
-  // Format resource utilization data for chart
-  const chartResourceData = utilization?.resourceUtilization.slice(0, 6).map((r) => ({
-    name: r.name.length > 15 ? `${r.name.substring(0, 13)}...` : r.name,
-    hours: parseFloat(r.booked_hours),
-    bookings: parseInt(r.booking_count, 10),
-  })) || [];
+  // Peak hours data
+  const peakData = (utilization?.peakHours || []).map((p) => ({
+    hour: `${String(p.hour).padStart(2, '0')}`,
+    count: parseInt(p.count, 10),
+  }));
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Admin Hub Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-8 shadow-xl">
+    <div className="space-y-16 py-6 animate-in fade-in duration-300">
+      {/* 1. Operations Header */}
+      <section className="flex flex-col sm:flex-row sm:items-baseline justify-between border-b border-neutral-200 pb-8 gap-4">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Administrator Control Center</span>
+          <div className="font-mono text-[10px] tracking-widest text-neutral-400 uppercase">
+            OPERATIONS CONSOLE // EXECUTIVE CONTROL
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Organization Utilization & Governance
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-charcoal-900 uppercase">
+            SPACE OPERATIONS.
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-            Live database-calculated metrics derived from PostgreSQL bookings and resource capacity.
+          <p className="text-neutral-500 font-sans text-sm">
+            Live database-derived occupancy, scheduling throughput, and capacity utilization.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 self-start font-mono text-xs">
           <Link
             href="/admin/resources"
-            className="px-4 py-2.5 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-700 text-white text-xs flex items-center gap-2 shadow-sm transition-colors"
+            className="px-4 py-2 border border-neutral-300 hover:border-charcoal-900 text-charcoal-800 transition-colors flex items-center gap-1.5"
           >
-            <Settings className="w-3.5 h-3.5" /> Manage Resources
+            <Settings className="w-3.5 h-3.5" /> Provisioning
           </Link>
           <Link
             href="/admin/bookings"
-            className="px-4 py-2.5 rounded-xl font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs flex items-center gap-2 transition-colors"
+            className="px-4 py-2 border border-neutral-300 hover:border-charcoal-900 text-charcoal-800 transition-colors"
           >
-            <Calendar className="w-3.5 h-3.5" /> Master Bookings
+            Master Bookings
           </Link>
           <Link
             href="/admin/analytics"
-            className="px-4 py-2.5 rounded-xl font-semibold bg-white text-slate-900 hover:bg-slate-100 text-xs flex items-center gap-2 transition-colors"
+            className="px-4 py-2 bg-charcoal-900 hover:bg-charcoal-800 text-white transition-colors"
           >
-            <BarChart3 className="w-3.5 h-3.5 text-indigo-600" /> Deep Analytics
+            Analytics Report →
           </Link>
         </div>
-      </div>
+      </section>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Total Managed Assets</span>
-            <Building2 className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-900">{stats?.resources.total || 0}</div>
-          <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-            <span>{stats?.resources.active || 0} active & available for booking</span>
-          </div>
+      {/* 2. High-Impact Utilization Indicator (NO CARDS) */}
+      <section className="border-b border-neutral-200 pb-12 space-y-8">
+        <div className="font-mono text-[11px] tracking-widest text-neutral-400 uppercase">
+          CAPACITY UTILIZATION INDEX
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Total Reservations</span>
-            <Calendar className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-900">{stats?.bookings.total || 0}</div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1">
-            <span>{stats?.bookings.today || 0} scheduled today</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Hours Reserved</span>
-            <Clock className="w-4 h-4 text-purple-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-900">
-            {stats?.bookings.totalHoursBooked || 0} <span className="text-sm font-normal text-slate-500">hrs</span>
-          </div>
-          <div className="text-[11px] text-slate-500">
-            Across confirmed bookings
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Cancellation Rate</span>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-900">
-            {stats?.bookings.cancellationRate || 0}%
-          </div>
-          <div className="text-[11px] text-slate-500">
-            {stats?.bookings.cancelled || 0} released reservations
-          </div>
-        </div>
-      </div>
-
-      {/* Most Booked Resource Callout */}
-      {stats?.mostBookedResource && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50/40 border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <Award className="w-5 h-5" />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-baseline">
+          <div className="md:col-span-5 space-y-2">
+            <div className="text-7xl sm:text-9xl font-extrabold tracking-tighter text-charcoal-900 leading-none">
+              {utilPercent}%
             </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                Most Booked Organizational Resource
-              </div>
-              <div className="text-base font-bold text-slate-900">
-                {stats.mostBookedResource.name}
-              </div>
+            <div className="font-mono text-xs uppercase text-neutral-500 tracking-wider">
+              ACTIVE RESOURCE OPERATIONAL READINESS
             </div>
           </div>
-          <div className="text-xs font-bold text-amber-900 bg-white/80 px-3.5 py-1.5 rounded-xl border border-amber-200 shrink-0">
-            {stats.mostBookedResource.booking_count} Completed Bookings
-          </div>
-        </div>
-      )}
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Booking Volume Over Time */}
-        <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Booking Volume Trend</h3>
-              <p className="text-xs text-slate-500">Daily reservation activity over past 14 days</p>
+          <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-6 font-mono text-xs pt-4 md:pt-0">
+            <div className="border-l border-neutral-200 pl-4 space-y-1">
+              <div className="text-[10px] text-neutral-400 uppercase">MANAGED ASSETS</div>
+              <div className="text-2xl font-bold text-charcoal-900">{stats?.resources.total || 0}</div>
+              <div className="text-[10px] text-emerald-700 font-bold">{stats?.resources.active || 0} ACTIVE</div>
             </div>
-            <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-              Live DB Data
-            </span>
-          </div>
 
-          <div className="h-64 w-full pt-4">
-            {chartVolumeData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No booking records in timeline
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartVolumeData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="Confirmed" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Cancelled" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Resource Booked Hours Utilization */}
-        <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Resource Utilization</h3>
-              <p className="text-xs text-slate-500">Total hours booked per shared asset</p>
+            <div className="border-l border-neutral-200 pl-4 space-y-1">
+              <div className="text-[10px] text-neutral-400 uppercase">RESERVATIONS</div>
+              <div className="text-2xl font-bold text-charcoal-900">{stats?.bookings.total || 0}</div>
+              <div className="text-[10px] text-neutral-500">{stats?.bookings.today || 0} TODAY</div>
             </div>
-            <Link
-              href="/admin/analytics"
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-            >
-              Full Breakdown →
-            </Link>
-          </div>
 
-          <div className="h-64 w-full pt-4">
-            {chartResourceData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No utilization records found
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartResourceData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} unit="h" />
-                  <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="hours" fill="#059669" radius={[0, 4, 4, 0]} name="Hours Booked" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <div className="border-l border-neutral-200 pl-4 space-y-1">
+              <div className="text-[10px] text-neutral-400 uppercase">HOURS BOOKED</div>
+              <div className="text-2xl font-bold text-charcoal-900">{stats?.bookings.totalHoursBooked || 0}</div>
+              <div className="text-[10px] text-neutral-500">CONFIRMED TIME</div>
+            </div>
+
+            <div className="border-l border-neutral-200 pl-4 space-y-1">
+              <div className="text-[10px] text-neutral-400 uppercase">CANCELLATIONS</div>
+              <div className="text-2xl font-bold text-charcoal-900">{stats?.bookings.cancellationRate || 0}%</div>
+              <div className="text-[10px] text-neutral-500">{stats?.bookings.cancelled || 0} RELEASED</div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* 3. Full-Width Booking Activity Chart */}
+      <section className="space-y-4">
+        <div className="flex justify-between items-baseline border-b border-neutral-200 pb-3">
+          <div className="font-mono text-[11px] tracking-widest text-neutral-400 uppercase">
+            BOOKING ACTIVITY // DAILY VOLUME
+          </div>
+          <span className="font-mono text-[10px] text-neutral-400">14-DAY WINDOW</span>
+        </div>
+
+        <div className="border border-neutral-200 bg-white p-6">
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={volumeData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: 'monospace' }} stroke="#737373" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fontFamily: 'monospace' }} stroke="#737373" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                />
+                <Bar dataKey="Confirmed" fill="#18181b" radius={0} />
+                <Bar dataKey="Cancelled" fill="#a1a1aa" radius={0} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Resource Performance Ranking (Progress Bar Meters) */}
+      <section className="space-y-4">
+        <div className="flex justify-between items-baseline border-b border-neutral-200 pb-3">
+          <div className="font-mono text-[11px] tracking-widest text-neutral-400 uppercase">
+            RESOURCE PERFORMANCE // OCCUPANCY HOURS
+          </div>
+          <Link
+            href="/admin/resources"
+            className="font-mono text-xs text-charcoal-900 hover:underline uppercase tracking-wider flex items-center gap-1"
+          >
+            Manage Assets <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="divide-y divide-neutral-200 border-t border-neutral-200">
+          {(utilization?.resourceUtilization || []).map((r) => {
+            const hours = parseFloat(r.booked_hours) || 0;
+            const percentage = Math.min(100, Math.round((hours / 24) * 100));
+
+            return (
+              <div key={r.id} className="py-4 space-y-2 font-mono text-xs">
+                <div className="flex justify-between items-baseline">
+                  <div className="font-bold text-charcoal-900 font-sans text-sm">{r.name}</div>
+                  <div className="text-neutral-500">
+                    <span className="font-bold text-charcoal-900">{r.booked_hours} hrs</span> ({r.booking_count} bookings)
+                  </div>
+                </div>
+
+                {/* Minimalist Proportional Fill Meter */}
+                <div className="w-full h-2 bg-neutral-100 overflow-hidden">
+                  <div
+                    className="h-full bg-charcoal-900 transition-all duration-500"
+                    style={{ width: `${Math.max(5, percentage)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 5. Peak Hours Distribution Heatmap */}
+      <section className="space-y-4">
+        <div className="flex justify-between items-baseline border-b border-neutral-200 pb-3">
+          <div className="font-mono text-[11px] tracking-widest text-neutral-400 uppercase">
+            PEAK BOOKING PERIODS // HOURLY DENSITY
+          </div>
+          <span className="font-mono text-[10px] text-neutral-400">POSTGRESQL EXTRACT(HOUR)</span>
+        </div>
+
+        <div className="border border-neutral-200 bg-white p-6">
+          <div className="grid grid-cols-12 gap-2 text-center font-mono text-[11px]">
+            {peakData.map((p) => {
+              const count = p.count;
+              const intensity = count > 2 ? 'bg-charcoal-900 text-white' : count > 0 ? 'bg-neutral-300 text-charcoal-900' : 'bg-neutral-100 text-neutral-400';
+              return (
+                <div key={p.hour} className="space-y-1">
+                  <div className={`py-4 font-bold ${intensity}`}>
+                    {count}
+                  </div>
+                  <div className="text-[10px] text-neutral-400">{p.hour}:00</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

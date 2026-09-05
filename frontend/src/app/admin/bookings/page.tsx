@@ -7,17 +7,13 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { api } from '../../../services/api';
 import { Booking } from '../../../types';
-import { BOOKING_STATUS_CONFIG, RESOURCE_TYPE_LABELS, formatDateTime, formatTimeRange } from '../../../utils/format';
+import { BOOKING_STATUS_CONFIG, formatDateTime, formatTimeRange } from '../../../utils/format';
 import {
-  Calendar,
-  Clock,
   Search,
   ChevronLeft,
-  XCircle,
-  Filter,
-  User,
-  MapPin,
+  X,
   AlertTriangle,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Modal } from '../../../components/ui/Modal';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
@@ -85,114 +81,180 @@ export default function AdminBookingsPage() {
     );
   });
 
+  const confirmedCount = bookings.filter((b) => b.status === 'confirmed').length;
+  const cancelledCount = bookings.filter((b) => b.status === 'cancelled').length;
+  const uniqueUsers = new Set(bookings.map((b) => b.user_email)).size;
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-12 animate-in fade-in duration-300 max-w-7xl mx-auto pb-16">
+      {/* Top Breadcrumb & Title */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-            <Link href="/admin" className="hover:text-indigo-600 flex items-center gap-1">
-              <ChevronLeft className="w-3.5 h-3.5" /> Back to Admin Hub
+          <div className="flex items-center gap-2 font-mono text-[11px] text-neutral-400 uppercase tracking-widest mb-3">
+            <Link href="/admin" className="hover:text-neutral-900 transition-colors flex items-center gap-1">
+              <ChevronLeft className="w-3.5 h-3.5" /> ADMIN OPERATIONS
             </Link>
+            <span>/</span>
+            <span className="text-neutral-900">AUDIT LEDGER</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-neutral-950 font-serif">
             Master Booking Oversight
           </h1>
-          <p className="text-slate-500 text-sm">
-            Inspect all scheduled sessions, member activities, and administrative slot cancellations.
+          <p className="text-neutral-500 text-sm mt-1 max-w-2xl font-sans">
+            Comprehensive audit log of all resource allocations, reserved timeframes, and administrative slot releases.
           </p>
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-            <Search className="w-4 h-4" />
-          </div>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by user, resource, or agenda purpose..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
+      {/* Summary KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 border border-neutral-200 bg-white">
+        <div className="p-6 border-r border-b lg:border-b-0 border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Total Reservations</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">{bookings.length}</div>
+          <div className="text-xs text-neutral-500 mt-1">Lifetime booking logs</div>
         </div>
+        <div className="p-6 border-b lg:border-b-0 lg:border-r border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Confirmed (Active)</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">{confirmedCount}</div>
+          <div className="text-xs text-neutral-500 mt-1">Occupying slots</div>
+        </div>
+        <div className="p-6 border-r border-neutral-200">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Released / Cancelled</div>
+          <div className="text-3xl font-light text-neutral-400 mt-1 font-mono">{cancelledCount}</div>
+          <div className="text-xs text-neutral-500 mt-1">Returned to inventory</div>
+        </div>
+        <div className="p-6">
+          <div className="font-mono text-[10px] text-neutral-400 uppercase tracking-widest">Unique Reservers</div>
+          <div className="text-3xl font-light text-neutral-950 mt-1 font-mono">{uniqueUsers}</div>
+          <div className="text-xs text-neutral-500 mt-1">Active team members</div>
+        </div>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 bg-white"
-          >
-            <option value="all">All Statuses</option>
-            <option value="confirmed">Confirmed Only</option>
-            <option value="cancelled">Cancelled Only</option>
-          </select>
-          <div className="text-xs text-slate-500 px-2 font-medium">
-            Showing {filtered.length} records
+      {/* Filter & Search Toolbar */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 border border-neutral-200 bg-white p-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by reserver name, email, resource or agenda purpose..."
+              className="w-full pl-10 pr-4 py-2 bg-transparent text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none font-mono"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-700"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto border-t md:border-t-0 border-neutral-100 pt-2 md:pt-0">
+            {[
+              { id: 'all', label: 'ALL LOGS' },
+              { id: 'confirmed', label: 'CONFIRMED ONLY' },
+              { id: 'cancelled', label: 'RELEASED ONLY' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id as any)}
+                className={`px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
+                  statusFilter === tab.id
+                    ? 'bg-neutral-950 text-white'
+                    : 'text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Bookings Table */}
+      {/* Master Booking Table */}
       {loading ? (
-        <LoadingSkeleton className="h-64 rounded-2xl" />
+        <LoadingSkeleton className="h-96 w-full" />
+      ) : filtered.length === 0 ? (
+        <div className="border border-neutral-200 bg-white p-12 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-neutral-400">No reservation records match criteria</p>
+          <button
+            onClick={() => {
+              setSearch('');
+              setStatusFilter('all');
+            }}
+            className="mt-4 font-mono text-xs text-neutral-900 underline uppercase tracking-wider cursor-pointer"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="border border-neutral-200 bg-white overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
+              <thead className="bg-neutral-50/80 border-b border-neutral-200 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
                 <tr>
-                  <th className="py-3.5 px-4">Resource</th>
-                  <th className="py-3.5 px-4">Reserved By</th>
-                  <th className="py-3.5 px-4">Time Slot</th>
-                  <th className="py-3.5 px-4">Purpose</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 w-12 text-neutral-400">REF</th>
+                  <th className="py-3 px-4 font-normal">RESOURCE & ZONE</th>
+                  <th className="py-3 px-4 font-normal">RESERVED BY</th>
+                  <th className="py-3 px-4 font-normal">SCHEDULED TIMEFRAME</th>
+                  <th className="py-3 px-4 font-normal">AGENDA / PURPOSE</th>
+                  <th className="py-3 px-4 font-normal">STATUS</th>
+                  <th className="py-3 px-4 font-normal text-right">ACTION</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filtered.map((b) => {
+              <tbody className="divide-y divide-neutral-100">
+                {filtered.map((b, idx) => {
                   const statusConfig = BOOKING_STATUS_CONFIG[b.status];
                   return (
-                    <tr key={b.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">{b.resource_name}</div>
-                        <div className="text-[11px] text-slate-500">{b.resource_location}</div>
+                    <tr key={b.id} className="hover:bg-neutral-50/60 transition-colors group">
+                      <td className="py-4 px-4 font-mono text-[11px] text-neutral-400">
+                        {String(idx + 1).padStart(2, '0')}
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-800">{b.user_name}</div>
-                        <div className="text-[11px] text-slate-500">{b.user_email}</div>
+                      <td className="py-4 px-4">
+                        <div className="font-medium text-neutral-950">{b.resource_name}</div>
+                        <div className="font-mono text-[11px] text-neutral-500 mt-0.5">{b.resource_location}</div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-medium text-slate-800">
-                          {formatDateTime(b.start_time)}
+                      <td className="py-4 px-4">
+                        <div className="text-neutral-900 font-medium">{b.user_name}</div>
+                        <div className="font-mono text-[11px] text-neutral-400 mt-0.5">{b.user_email}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="font-mono text-[11px] text-neutral-900">
+                          {formatDateTime(b.start_time).split(',')[0]}
                         </div>
-                        <div className="text-[11px] text-slate-500">
+                        <div className="font-mono text-[11px] text-neutral-500 mt-0.5">
                           {formatTimeRange(b.start_time, b.end_time)}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 max-w-xs">
-                        <div className="line-clamp-2 text-slate-700">{b.purpose}</div>
+                      <td className="py-4 px-4 max-w-xs">
+                        <div className="line-clamp-2 text-neutral-600 text-xs">{b.purpose}</div>
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-4 px-4">
                         <span
-                          className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}
+                          className={`inline-block font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border ${
+                            b.status === 'confirmed'
+                              ? 'bg-neutral-950 text-white border-neutral-950'
+                              : 'bg-neutral-100 text-neutral-400 border-neutral-200'
+                          }`}
                         >
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-4 px-4 text-right">
                         {b.status === 'confirmed' ? (
                           <button
                             onClick={() => setSelectedBooking(b)}
-                            className="px-2.5 py-1 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                            className="font-mono text-[11px] text-rose-700 hover:text-rose-900 underline cursor-pointer transition-colors"
                           >
-                            Cancel Slot
+                            RELEASE SLOT
                           </button>
                         ) : (
-                          <span className="text-[11px] text-slate-400 font-medium">Released</span>
+                          <span className="font-mono text-[10px] text-neutral-300 uppercase">RELEASED</span>
                         )}
                       </td>
                     </tr>
@@ -208,43 +270,53 @@ export default function AdminBookingsPage() {
       <Modal
         isOpen={!!selectedBooking}
         onClose={() => setSelectedBooking(null)}
-        title="Admin Cancellation Override"
+        title="ADMINISTRATIVE CANCELLATION"
       >
         {selectedBooking && (
-          <div className="space-y-4">
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-900 space-y-1">
-              <div className="font-bold flex items-center gap-1.5">
+          <div className="space-y-6 pt-2">
+            <div className="p-4 border border-rose-200 bg-rose-50/40 text-xs text-rose-950 space-y-2">
+              <div className="font-mono font-bold flex items-center gap-1.5 uppercase tracking-wider text-rose-800">
                 <AlertTriangle className="w-4 h-4 text-rose-600" />
-                Administrative Cancellation
+                Slot Revocation Warning
               </div>
-              <p>
-                Are you sure you want to cancel the booking for <strong>{selectedBooking.user_name}</strong> on{' '}
-                <strong>{selectedBooking.resource_name}</strong>? This will free the slot immediately.
+              <p className="font-sans leading-relaxed">
+                You are about to release the reservation held by <strong>{selectedBooking.user_name}</strong> for{' '}
+                <strong>{selectedBooking.resource_name}</strong>. The space will be marked as available immediately.
               </p>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 space-y-1 border border-slate-200">
-              <div>
-                <strong>Agenda:</strong> {selectedBooking.purpose}
+            <div className="border border-neutral-200 bg-neutral-50/50 p-4 font-mono text-xs text-neutral-700 space-y-2">
+              <div className="flex justify-between border-b border-neutral-200 pb-1.5">
+                <span className="text-neutral-400 uppercase">Reserver</span>
+                <span className="text-neutral-900 font-medium">{selectedBooking.user_name} ({selectedBooking.user_email})</span>
               </div>
-              <div>
-                <strong>Scheduled:</strong> {formatDateTime(selectedBooking.start_time)}
+              <div className="flex justify-between border-b border-neutral-200 pb-1.5">
+                <span className="text-neutral-400 uppercase">Resource</span>
+                <span className="text-neutral-900 font-medium">{selectedBooking.resource_name}</span>
+              </div>
+              <div className="flex justify-between border-b border-neutral-200 pb-1.5">
+                <span className="text-neutral-400 uppercase">Slot</span>
+                <span className="text-neutral-900 font-medium">{formatDateTime(selectedBooking.start_time)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400 uppercase">Agenda</span>
+                <span className="text-neutral-900 truncate max-w-xs">{selectedBooking.purpose}</span>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setSelectedBooking(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                className="px-4 py-2 font-mono text-xs uppercase tracking-wider text-neutral-500 hover:text-neutral-900 cursor-pointer"
               >
                 Dismiss
               </button>
               <button
                 onClick={handleAdminCancel}
                 disabled={cancelling}
-                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl"
+                className="px-6 py-2.5 font-mono text-xs uppercase tracking-widest bg-rose-700 text-white hover:bg-rose-800 disabled:opacity-50 cursor-pointer transition-colors"
               >
-                {cancelling ? 'Releasing...' : 'Confirm Cancellation'}
+                {cancelling ? 'Releasing...' : 'Confirm Revocation'}
               </button>
             </div>
           </div>
@@ -253,3 +325,4 @@ export default function AdminBookingsPage() {
     </div>
   );
 }
+

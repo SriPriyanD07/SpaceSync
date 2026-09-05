@@ -1,11 +1,16 @@
 import { Response, NextFunction } from 'express';
-import { pool, query } from '../config/db';
+import { pool, getClient, query } from '../config/db';
 import { createBookingSchema } from '../utils/validation';
 import { ConflictError, NotFoundError, ForbiddenError, ValidationError } from '../utils/errors';
 import { AuthenticatedRequest } from '../types';
 
 export async function createBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const client = await pool.connect();
+  let client: any;
+  try {
+    client = await pool.connect();
+  } catch {
+    client = await getClient();
+  }
   try {
     if (!req.user) {
       throw new ForbiddenError('Authentication required to create a booking');

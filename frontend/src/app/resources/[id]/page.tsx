@@ -3,23 +3,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, ApiError } from '../../../services/api';
-import { Resource, ResourceAvailabilityResponse, AvailabilitySlot } from '../../../types';
-import { RESOURCE_TYPE_LABELS, RESOURCE_STATUS_CONFIG, formatDateTime, formatTimeRange } from '../../../utils/format';
+import { api } from '../../../services/api';
+import { Resource, ResourceAvailabilityResponse } from '../../../types';
+import { RESOURCE_TYPE_LABELS, RESOURCE_STATUS_CONFIG, formatTimeRange } from '../../../utils/format';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import {
-  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
   Clock,
   MapPin,
   Users,
-  ChevronLeft,
-  ChevronRight,
-  ShieldAlert,
-  CheckCircle2,
+  Check,
   AlertCircle,
-  Sparkles,
-  ArrowRight,
   Lock,
 } from 'lucide-react';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
@@ -35,7 +32,7 @@ export default function ResourceDetailsPage() {
   const [availability, setAvailability] = useState<ResourceAvailabilityResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Selected date (default today YYYY-MM-DD)
+  // Selected date (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
@@ -43,7 +40,7 @@ export default function ResourceDetailsPage() {
   // Booking Form State
   const [startHour, setStartHour] = useState<number>(10);
   const [endHour, setEndHour] = useState<number>(12);
-  const [purpose, setPurpose] = useState<string>('Team Design Review');
+  const [purpose, setPurpose] = useState<string>('Architecture Review');
   const [submitting, setSubmitting] = useState(false);
   const [conflictError, setConflictError] = useState<string>('');
 
@@ -63,26 +60,25 @@ export default function ResourceDetailsPage() {
       setResource(resData.resource);
       setAvailability(availData);
     } catch (err: any) {
-      console.error('Error fetching availability', err);
-      toast.error(err.message || 'Failed to load resource availability');
+      console.error('Error loading resource', err);
+      toast.error(err.message || 'Failed to fetch resource data');
     } finally {
       setLoading(false);
     }
   };
 
   const shiftDate = (offsetDays: number) => {
-    const current = new Date(selectedDate);
-    current.setDate(current.getDate() + offsetDays);
-    setSelectedDate(current.toISOString().split('T')[0]);
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + offsetDays);
+    setSelectedDate(d.toISOString().split('T')[0]);
   };
 
-  // Convert selected hour to ISO string for submission
   const getIsoTimestamp = (hour: number) => {
     return `${selectedDate}T${String(hour).padStart(2, '0')}:00:00.000Z`;
   };
 
-  // Client-side overlap detection for visual feedback
-  const clientOverlapCheck = useMemo(() => {
+  // Client-side overlap pre-check
+  const clientCollision = useMemo(() => {
     if (!availability || !availability.confirmedBookings) return null;
 
     const chosenStart = new Date(getIsoTimestamp(startHour));
@@ -96,17 +92,16 @@ export default function ResourceDetailsPage() {
       if (b.status !== 'confirmed') return false;
       const bStart = new Date(b.start_time);
       const bEnd = new Date(b.end_time);
-      // Interval overlap condition: chosenStart < bEnd && chosenEnd > bStart
       return chosenStart < bEnd && chosenEnd > bStart;
     });
 
     if (collision) {
       return {
         hasConflict: true,
-        message: `Conflicts with existing reservation: "${collision.purpose}" (${formatTimeRange(
+        message: `This resource is already reserved for "${collision.purpose}" (${formatTimeRange(
           collision.start_time,
           collision.end_time
-        )})`,
+        )}).`,
       };
     }
 
@@ -116,7 +111,7 @@ export default function ResourceDetailsPage() {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      toast.error('Please log in to book a resource.');
+      toast.error('Sign in required to confirm booking.');
       router.push('/login');
       return;
     }
@@ -124,26 +119,21 @@ export default function ResourceDetailsPage() {
     setConflictError('');
     setSubmitting(true);
 
-    const startTimeIso = getIsoTimestamp(startHour);
-    const endTimeIso = getIsoTimestamp(endHour);
-
     try {
       await api.post('/bookings', {
         resource_id: id,
-        start_time: startTimeIso,
-        end_time: endTimeIso,
+        start_time: getIsoTimestamp(startHour),
+        end_time: getIsoTimestamp(endHour),
         purpose: purpose.trim(),
       });
 
-      toast.success('🎉 Booking confirmed successfully! Double-booking check passed.');
-      // Refresh availability immediately
+      toast.success('Reservation confirmed. Concurrency check passed.');
       await fetchResourceData();
     } catch (err: any) {
       if (err.statusCode === 409) {
         setConflictError(err.message || 'This resource is already booked during the selected time.');
-        toast.error('Booking Conflict! The requested time slot is unavailable.');
       } else {
-        toast.error(err.message || 'Failed to create booking.');
+        toast.error(err.message || 'Failed to create reservation');
       }
     } finally {
       setSubmitting(false);
@@ -152,262 +142,127 @@ export default function ResourceDetailsPage() {
 
   if (loading && !resource) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8 py-8">
         <LoadingSkeleton className="h-10 w-48" />
-        <LoadingSkeleton className="h-48 rounded-2xl" />
-        <LoadingSkeleton className="h-64 rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <LoadingSkeleton className="lg:col-span-5 h-96" />
+          <LoadingSkeleton className="lg:col-span-7 h-96" />
+        </div>
       </div>
     );
   }
 
   if (!resource) {
     return (
-      <div className="text-center py-16">
-        <h2 className="text-xl font-bold text-slate-800">Resource not found</h2>
-        <Link href="/resources" className="text-indigo-600 underline text-sm mt-2 inline-block">
-          Return to Resources
+      <div className="py-16 text-center">
+        <h2 className="text-xl font-bold text-charcoal-900">Resource not found</h2>
+        <Link href="/resources" className="text-xs font-mono underline mt-2 inline-block">
+          Return to directory
         </Link>
       </div>
     );
   }
 
-  const statusConfig = RESOURCE_STATUS_CONFIG[resource.status];
+  const durationHours = endHour - startHour;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <Link href="/resources" className="hover:text-indigo-600 transition-colors">
-          Resources
+    <div className="space-y-12 py-6 animate-in fade-in duration-300">
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center gap-2 font-mono text-xs text-neutral-400">
+        <Link href="/resources" className="hover:text-charcoal-900 transition-colors">
+          RESOURCES
         </Link>
         <span>/</span>
-        <span className="text-slate-900 font-semibold">{resource.name}</span>
+        <span className="text-charcoal-900 font-semibold">{resource.name.toUpperCase()}</span>
       </div>
 
-      {/* Resource Spec Header */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div className="space-y-3 max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                {RESOURCE_TYPE_LABELS[resource.type] || resource.type}
-              </span>
-              <span
-                className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}
-              >
-                {statusConfig.label}
-              </span>
+      {/* Main Split Layout: Left Spec & Form • Right Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        {/* LEFT COLUMN: Resource Identity & Deliberate Reservation Form */}
+        <div className="lg:col-span-5 space-y-10">
+          {/* Resource Identity */}
+          <div className="space-y-4">
+            <div className="font-mono text-[10px] tracking-widest text-neutral-400 uppercase">
+              SPECIFICATION // {RESOURCE_TYPE_LABELS[resource.type] || resource.type}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-charcoal-900 uppercase leading-[0.95]">
               {resource.name}
             </h1>
 
-            <p className="text-sm text-slate-600 leading-relaxed">
-              {resource.description || 'High quality organizational shared asset.'}
+            <p className="font-sans text-sm text-neutral-600 leading-relaxed pt-1">
+              {resource.description || 'Shared institutional resource with automated occupancy management.'}
             </p>
 
-            <div className="flex flex-wrap items-center gap-6 pt-2 text-xs font-medium text-slate-600">
-              <div className="flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-indigo-500" />
-                <span>{resource.location}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-indigo-500" />
-                <span>
-                  Capacity: <strong>{resource.capacity}</strong> {resource.capacity === 1 ? 'person / unit' : 'attendees'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900 max-w-xs space-y-2">
-            <div className="font-bold flex items-center gap-1.5 text-indigo-800">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              Double-Booking Shield
-            </div>
-            <p className="leading-relaxed text-indigo-700 text-[11px]">
-              Protected by PostgreSQL exclusion constraints (`btree_gist`) and transaction locks. Race conditions are mathematically rejected with 409 Conflict.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Date Navigation & Availability Schedule */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Visual Timeline (2 Cols) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-            {/* Date Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-neutral-200 font-mono text-xs">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-indigo-600" />
-                  Availability Schedule
-                </h2>
-                <p className="text-xs text-slate-500">Hourly breakdown from 08:00 AM to 08:00 PM</p>
+                <div className="text-[10px] text-neutral-400 uppercase">LOCATION</div>
+                <div className="font-bold text-charcoal-900">{resource.location}</div>
               </div>
-
-              {/* Date Controls */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => shiftDate(-1)}
-                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600"
-                  title="Previous Day"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-                <button
-                  onClick={() => shiftDate(1)}
-                  className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600"
-                  title="Next Day"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Timeline Slot Grid */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-2">
-                <span>TIME SLOT</span>
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1 text-emerald-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Available
-                  </span>
-                  <span className="flex items-center gap-1 text-rose-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Reserved
-                  </span>
+              <div>
+                <div className="text-[10px] text-neutral-400 uppercase">CAPACITY</div>
+                <div className="font-bold text-charcoal-900">
+                  {resource.capacity} {resource.capacity === 1 ? 'Person' : 'Persons'}
                 </div>
-              </div>
-
-              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/40">
-                {availability?.slots.map((slot) => {
-                  const hourNum = parseInt(slot.hour.split(':')[0], 10);
-                  const isSelectedStart = hourNum === startHour;
-                  const isInSelectedRange = hourNum >= startHour && hourNum < endHour;
-
-                  return (
-                    <div
-                      key={slot.hour}
-                      onClick={() => {
-                        if (slot.isAvailable) {
-                          setStartHour(hourNum);
-                          setEndHour(hourNum + 1);
-                        }
-                      }}
-                      className={`p-3 sm:px-4 flex items-center justify-between transition-all cursor-pointer ${
-                        isInSelectedRange
-                          ? 'bg-indigo-100/80 border-l-4 border-indigo-600'
-                          : slot.isAvailable
-                          ? 'hover:bg-emerald-50/60 bg-white'
-                          : 'bg-rose-50/50 hover:bg-rose-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono font-bold text-slate-700 w-16">
-                          {slot.hour}
-                        </span>
-
-                        {slot.isAvailable ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            Open Slot • Click to select
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700">
-                              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-                              Reserved: {slot.booking?.purpose || 'Scheduled Meeting'}
-                            </span>
-                            {slot.booking?.userName && (
-                              <div className="text-[10px] text-slate-500">
-                                Reserved by {slot.booking.userName}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        {slot.isAvailable ? (
-                          <span className="text-[11px] font-semibold text-indigo-600 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-100">
-                            Select
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-rose-700 px-2 py-0.5 rounded bg-rose-100/60 border border-rose-200">
-                            Occupied
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Booking Form Card (1 Col) */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs space-y-5">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Make a Reservation</h3>
-              <p className="text-xs text-slate-500">Configure time and confirm booking</p>
+          {/* Deliberate Reservation Form */}
+          <div className="border border-neutral-200 bg-white p-6 sm:p-8 space-y-6">
+            <div className="border-b border-neutral-200 pb-3 flex justify-between items-baseline">
+              <span className="font-mono text-xs font-bold text-charcoal-900 uppercase tracking-wider">
+                BOOK RESOURCE
+              </span>
+              <span className="font-mono text-[10px] text-neutral-400">
+                {selectedDate}
+              </span>
             </div>
 
-            {conflictError && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1 animate-in shake">
-                <div className="font-bold flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-rose-600" />
-                  409 Conflict Detected
+            {/* Inline Conflict State Notice */}
+            {(conflictError || clientCollision?.hasConflict) && (
+              <div className="p-4 bg-rose-50 border border-rose-300 font-mono text-xs space-y-1 animate-in fade-in">
+                <div className="text-rose-800 font-bold uppercase flex items-center justify-between">
+                  <span>{String(startHour).padStart(2, '0')}:00 → {String(endHour).padStart(2, '0')}:00 UNAVAILABLE</span>
+                  <span className="text-[10px]">409 CONFLICT</span>
                 </div>
-                <p className="leading-snug">{conflictError}</p>
-              </div>
-            )}
-
-            {clientOverlapCheck?.hasConflict && !conflictError && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
-                <div className="font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                  Schedule Conflict Warning
+                <p className="font-sans text-xs text-rose-700 leading-relaxed">
+                  {conflictError || clientCollision?.message}
+                </p>
+                <div className="text-[10px] text-neutral-500 pt-1 font-mono">
+                  Select another available interval from the schedule.
                 </div>
-                <p className="text-[11px] leading-snug">{clientOverlapCheck.message}</p>
               </div>
             )}
 
             <form onSubmit={handleBookingSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              {/* Date Input */}
+              <div className="space-y-1">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
                   Date
                 </label>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              {/* Interval Start & End */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
                     Start Time
                   </label>
                   <select
                     value={startHour}
                     onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setStartHour(val);
-                      if (endHour <= val) setEndHour(val + 1);
+                      const v = Number(e.target.value);
+                      setStartHour(v);
+                      if (endHour <= v) setEndHour(v + 1);
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs bg-white focus:outline-none"
                   >
                     {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map((h) => (
                       <option key={h} value={h}>
@@ -417,14 +272,14 @@ export default function ResourceDetailsPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                <div className="space-y-1">
+                  <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
                     End Time
                   </label>
                   <select
                     value={endHour}
                     onChange={(e) => setEndHour(Number(e.target.value))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 font-mono text-xs bg-white focus:outline-none"
                   >
                     {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((h) => (
                       <option key={h} value={h} disabled={h <= startHour}>
@@ -435,24 +290,37 @@ export default function ResourceDetailsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Booking Purpose / Agenda
+              {/* Purpose / Agenda */}
+              <div className="space-y-1">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-neutral-600">
+                  Purpose / Agenda
                 </label>
                 <input
                   type="text"
                   required
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="e.g. Sprint Planning, Client Demo"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder="e.g. Client Architecture Kickoff"
+                  className="w-full px-3 py-2 border border-neutral-300 focus:border-charcoal-900 text-xs focus:outline-none font-sans"
                 />
               </div>
 
-              {/* Demo Action Helper */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <span className="font-bold text-slate-800">Quick Test Preset:</span>
-                <div className="flex gap-2 pt-1">
+              {/* Summary Metadata */}
+              <div className="border-t border-neutral-100 pt-3 flex justify-between font-mono text-xs text-neutral-500">
+                <span>DURATION: {durationHours} {durationHours === 1 ? 'HOUR' : 'HOURS'}</span>
+                <span>
+                  {clientCollision?.hasConflict ? (
+                    <span className="text-rose-700 font-bold">● UNAVAILABLE</span>
+                  ) : (
+                    <span className="text-emerald-700 font-bold">● READY</span>
+                  )}
+                </span>
+              </div>
+
+              {/* Preset Buttons for Fast Demo */}
+              <div className="pt-2 border-t border-neutral-100 font-mono text-[10px] text-neutral-400 space-y-1">
+                <div>DEMO PRESETS:</div>
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -460,20 +328,20 @@ export default function ResourceDetailsPage() {
                       setEndHour(12);
                       setPurpose('Architecture Review 10:00-12:00');
                     }}
-                    className="px-2 py-1 rounded bg-white border border-slate-300 hover:bg-slate-100 font-mono text-[10px]"
+                    className="px-2 py-1 border border-neutral-200 hover:border-charcoal-900 text-charcoal-800"
                   >
-                    Set 10:00–12:00
+                    10:00–12:00 (Base)
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setStartHour(11);
                       setEndHour(13);
-                      setPurpose('Attempted Overlap 11:00-13:00');
+                      setPurpose('Conflict Attempt 11:00-13:00');
                     }}
-                    className="px-2 py-1 rounded bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 font-mono text-[10px]"
+                    className="px-2 py-1 border border-rose-300 text-rose-800 hover:bg-rose-50"
                   >
-                    Set 11:00–13:00 (Conflict)
+                    11:00–13:00 (Conflict)
                   </button>
                   <button
                     type="button"
@@ -482,45 +350,155 @@ export default function ResourceDetailsPage() {
                       setEndHour(14);
                       setPurpose('Back-to-Back 12:00-14:00');
                     }}
-                    className="px-2 py-1 rounded bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-mono text-[10px]"
+                    className="px-2 py-1 border border-emerald-300 text-emerald-800 hover:bg-emerald-50"
                   >
-                    Set 12:00–14:00 (Allowed)
+                    12:00–14:00 (Allowed)
                   </button>
                 </div>
               </div>
 
+              {/* Submit Trigger */}
               {isAuthenticated ? (
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="w-full py-3 px-4 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                  disabled={submitting || !!clientCollision?.hasConflict}
+                  className="w-full py-3 bg-charcoal-900 hover:bg-charcoal-800 text-white font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                 >
-                  {submitting ? (
-                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Confirm Reservation <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
+                  {submitting ? 'Confirming...' : 'Confirm Reservation'}
                 </button>
               ) : (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => quickLogin('member1')}
-                    className="w-full py-2.5 px-4 rounded-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 text-xs flex items-center justify-center gap-2"
-                  >
-                    <Lock className="w-3.5 h-3.5" /> 1-Click Login as Member to Book
-                  </button>
-                  <Link
-                    href="/login"
-                    className="block text-center text-xs text-indigo-600 hover:underline"
-                  >
-                    Sign in with existing credentials
-                  </Link>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => quickLogin('member1')}
+                  className="w-full py-3 bg-charcoal-900 hover:bg-charcoal-800 text-white font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-3.5 h-3.5" /> 1-Click Login as Member to Book
+                </button>
               )}
             </form>
+          </div>
+
+          {/* Database Concurrency Note */}
+          <div className="border border-neutral-200 p-4 font-mono text-[10px] text-neutral-500 space-y-1">
+            <div className="font-bold text-charcoal-900 uppercase">
+              POSTGRESQL CONCURRENCY SHIELD
+            </div>
+            <p className="font-sans text-xs text-neutral-600 leading-relaxed">
+              Protected by PostgreSQL range exclusion constraint: <code>EXCLUDE USING gist (resource_id WITH =, tstzrange(start_time, end_time) WITH &&) WHERE (status = &apos;confirmed&apos;)</code>.
+            </p>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Visual Availability Timeline Schedule */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="border border-neutral-200 bg-white p-6 sm:p-8 space-y-6">
+            {/* Header with Date Navigation */}
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between border-b border-neutral-200 pb-4 gap-4">
+              <div>
+                <div className="font-mono text-[10px] tracking-widest text-neutral-400 uppercase">
+                  SCHEDULE AUDIT // 08:00 — 20:00
+                </div>
+                <h3 className="text-xl font-bold uppercase tracking-tight text-charcoal-900">
+                  AVAILABILITY TIMELINE
+                </h3>
+              </div>
+
+              {/* Date Controls */}
+              <div className="flex items-center gap-2 font-mono text-xs">
+                <button
+                  onClick={() => shiftDate(-1)}
+                  className="p-1.5 border border-neutral-300 hover:border-charcoal-900 text-charcoal-800"
+                  title="Previous Day"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-2 py-1 border border-neutral-300 text-xs focus:outline-none"
+                />
+                <button
+                  onClick={() => shiftDate(1)}
+                  className="p-1.5 border border-neutral-300 hover:border-charcoal-900 text-charcoal-800"
+                  title="Next Day"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Timeline Legend */}
+            <div className="flex items-center justify-between font-mono text-[10px] text-neutral-400 border-b border-neutral-100 pb-2">
+              <span>INTERVAL (1 HOUR)</span>
+              <div className="flex items-center gap-4">
+                <span className="text-emerald-700">● VACANT</span>
+                <span className="text-rose-700">● RESERVED</span>
+                <span className="text-charcoal-900 font-bold">█ YOUR SELECTION</span>
+              </div>
+            </div>
+
+            {/* Precision Vertical Timeline */}
+            <div className="divide-y divide-neutral-200 border-t border-b border-neutral-200">
+              {availability?.slots.map((slot) => {
+                const hourNum = parseInt(slot.hour.split(':')[0], 10);
+                const isSelected = hourNum >= startHour && hourNum < endHour;
+
+                return (
+                  <div
+                    key={slot.hour}
+                    onClick={() => {
+                      if (slot.isAvailable) {
+                        setStartHour(hourNum);
+                        setEndHour(hourNum + 1);
+                      }
+                    }}
+                    className={`py-3.5 px-3 sm:px-4 flex items-center justify-between transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-charcoal-900 text-white'
+                        : slot.isAvailable
+                        ? 'hover:bg-neutral-50 bg-white text-charcoal-800'
+                        : 'bg-neutral-100 text-neutral-500'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className={`font-mono text-xs w-14 font-bold ${isSelected ? 'text-neutral-300' : 'text-charcoal-900'}`}>
+                        {slot.hour}
+                      </span>
+
+                      {slot.isAvailable ? (
+                        <div className="flex items-center gap-2 font-mono text-xs">
+                          <span className={`text-[11px] ${isSelected ? 'text-white' : 'text-emerald-700'}`}>
+                            {isSelected ? '● SELECTED INTERVAL' : 'AVAILABLE • CLICK TO SELECT'}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          <div className="font-mono text-xs font-bold text-rose-700 uppercase">
+                            RESERVED // {slot.booking?.purpose || 'SCHEDULED SESSION'}
+                          </div>
+                          {slot.booking?.userName && (
+                            <div className="font-mono text-[10px] text-neutral-400">
+                              BY {slot.booking.userName.toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="font-mono text-[10px] uppercase tracking-wider">
+                      {isSelected ? (
+                        <span className="text-emerald-400 font-bold">[SELECTED]</span>
+                      ) : slot.isAvailable ? (
+                        <span className="text-neutral-400 hover:text-charcoal-900">[SELECT]</span>
+                      ) : (
+                        <span className="text-rose-700 font-bold">[OCCUPIED]</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
