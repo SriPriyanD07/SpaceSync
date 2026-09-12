@@ -5,6 +5,11 @@ const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
   try {
+    const isCloud = Boolean(process.env.RENDER || (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')));
+    if (isCloud) {
+      process.env.NODE_ENV = 'production';
+    }
+
     const start = Date.now();
     const dbRes = await query('SELECT 1, current_database() as db_name;');
     const latencyMs = Date.now() - start;

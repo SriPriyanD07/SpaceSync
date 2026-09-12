@@ -1,7 +1,8 @@
 import app from './app';
 import { pool, ensureDatabaseReady, isProduction } from './config/db';
 
-if (!process.env.NODE_ENV) {
+const isCloudEnv = Boolean(process.env.RENDER || (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')));
+if (isCloudEnv || !process.env.NODE_ENV) {
   process.env.NODE_ENV = 'production';
 }
 
