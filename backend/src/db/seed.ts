@@ -7,32 +7,30 @@ export async function seedDatabase() {
     console.log('🌱 Starting database seeding...');
     await client.query('BEGIN');
 
-    // 1. Clear existing seed data if needed
-    await client.query('DELETE FROM bookings');
-    await client.query('DELETE FROM resources');
-    await client.query('DELETE FROM users');
-
-    // 2. Insert Users with hashed passwords
+    // 1. Insert/ensure Users with hashed passwords (idempotent, safe on conflict)
     const adminPasswordHash = await bcrypt.hash('Admin123!', 10);
     const memberPasswordHash = await bcrypt.hash('Member123!', 10);
 
-    const userRes = await client.query(
+    await client.query(
       `INSERT INTO users (id, name, email, password_hash, role) VALUES
         ('00000000-0000-0000-0000-000000000001', 'SpaceSync Admin', 'admin@spacesync.io', $1, 'admin'),
         ('00000000-0000-0000-0000-000000000002', 'Alex Johnson', 'member1@spacesync.io', $2, 'member'),
         ('00000000-0000-0000-0000-000000000003', 'Sarah Chen', 'member2@spacesync.io', $2, 'member')
-      RETURNING id, email, role;`,
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        role = EXCLUDED.role;`,
       [adminPasswordHash, memberPasswordHash]
     );
 
-    const admin = userRes.rows.find(u => u.role === 'admin');
-    const member1 = userRes.rows.find(u => u.email === 'member1@spacesync.io');
-    const member2 = userRes.rows.find(u => u.email === 'member2@spacesync.io');
+    const userRes = await client.query('SELECT id, email, role FROM users;');
+    const admin = userRes.rows.find(u => u.role === 'admin') || userRes.rows[0];
+    const member1 = userRes.rows.find(u => u.email === 'member1@spacesync.io') || userRes.rows[0];
+    const member2 = userRes.rows.find(u => u.email === 'member2@spacesync.io') || userRes.rows[0];
 
-    console.log(`👤 Seeded ${userRes.rows.length} users (Admin & Members).`);
+    console.log(`👤 Verified ${userRes.rows.length} users (Admin & Members).`);
 
-    // 3. Insert Diverse Resources with deterministic UUIDs
-    const resourceRes = await client.query(
+    // 2. Insert Diverse Resources with deterministic UUIDs (idempotent, safe on conflict)
+    await client.query(
       `INSERT INTO resources (id, name, type, location, capacity, description, status) VALUES
         ('11111111-1111-1111-1111-111111111111', 'Conference Room Alpha', 'conference_room', 'Building A, Floor 3', 20, 'Equipped with dual 4K displays, Polycom conference audio, and video framing.', 'active'),
         ('11111111-1111-1111-1111-111111111112', 'Meeting Room Beta', 'meeting_room', 'Building A, Floor 2', 6, 'Compact team room with digital whiteboard and wireless screen projection.', 'active'),
@@ -41,71 +39,58 @@ export async function seedDatabase() {
         ('11111111-1111-1111-1111-111111111115', 'AI Workstation 01', 'workstation', 'Innovation Lab - Desk 14', 1, 'High-performance workstation with dual NVIDIA RTX 4090 GPUs, 128GB RAM, and Ubuntu OS.', 'active'),
         ('11111111-1111-1111-1111-111111111116', 'Research Lab Bench 01', 'lab_equipment', 'Science Wing 102', 4, 'Equipped with stereo microscope, precision balance, fume extraction, and ESD bench.', 'active'),
         ('11111111-1111-1111-1111-111111111117', 'Quiet Study Pod 04', 'study_space', 'Library Mezzanine', 2, 'Acoustically isolated pod with sit/stand desk, ergonomic chairs, and fast USB-C power.', 'active')
-      RETURNING id, name, type;`
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        location = EXCLUDED.location,
+        capacity = EXCLUDED.capacity,
+        description = EXCLUDED.description,
+        status = EXCLUDED.status;`
     );
 
-    console.log(`🏢 Seeded ${resourceRes.rows.length} resources.`);
+    const resourceRes = await client.query('SELECT id, name, type FROM resources;');
+    console.log(`🏢 Verified ${resourceRes.rows.length} resources in database.`);
 
-    const roomAlpha = resourceRes.rows.find(r => r.name === 'Conference Room Alpha');
-    const roomBeta = resourceRes.rows.find(r => r.name === 'Meeting Room Beta');
-    const roomGamma = resourceRes.rows.find(r => r.name === 'Training Room Gamma');
-    const workstation = resourceRes.rows.find(r => r.name === 'AI Workstation 01');
+    const roomAlpha = resourceRes.rows.find(r => r.name === 'Conference Room Alpha') || resourceRes.rows[0];
+    const roomBeta = resourceRes.rows.find(r => r.name === 'Meeting Room Beta') || resourceRes.rows[0];
+    const roomGamma = resourceRes.rows.find(r => r.name === 'Training Room Gamma') || resourceRes.rows[0];
+    const workstation = resourceRes.rows.find(r => r.name === 'AI Workstation 01') || resourceRes.rows[0];
 
-    // 4. Calculate dynamic timestamps for today, yesterday, 2 days ago, and tomorrow
-    const now = new Date();
-    
-    // Helper to format ISO without milliseconds issues
-    const makeDate = (dayOffset: number, hour: number, minute: number = 0) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() + dayOffset);
-      d.setHours(hour, minute, 0, 0);
-      return d.toISOString();
-    };
+    // 3. Seed initial bookings only if bookings table is empty
+    const bookingCountRes = await client.query('SELECT COUNT(*) FROM bookings;');
+    const bookingCount = parseInt(bookingCountRes.rows[0]?.count || '0', 10);
 
-    // Past bookings (2 days ago)
-    const pastStart1 = makeDate(-2, 10);
-    const pastEnd1 = makeDate(-2, 12);
-    const pastStart2 = makeDate(-2, 14);
-    const pastEnd2 = makeDate(-2, 16);
+    if (bookingCount === 0 && roomAlpha && roomBeta && roomGamma && workstation) {
+      const now = new Date();
+      const makeDate = (dayOffset: number, hour: number, minute: number = 0) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + dayOffset);
+        d.setHours(hour, minute, 0, 0);
+        return d.toISOString();
+      };
 
-    // Yesterday bookings
-    const yestStart1 = makeDate(-1, 9);
-    const yestEnd1 = makeDate(-1, 11);
-    const yestStart2 = makeDate(-1, 13);
-    const yestEnd2 = makeDate(-1, 15);
+      const sampleBookings = [
+        { resource_id: roomAlpha.id, user_id: member1.id, start_time: makeDate(-2, 10), end_time: makeDate(-2, 12), status: 'confirmed', purpose: 'Q3 Product Strategy Sync' },
+        { resource_id: roomBeta.id, user_id: member2.id, start_time: makeDate(-2, 14), end_time: makeDate(-2, 16), status: 'confirmed', purpose: 'Sprint Retrospective & Planning' },
+        { resource_id: roomAlpha.id, user_id: member2.id, start_time: makeDate(-1, 9), end_time: makeDate(-1, 11), status: 'confirmed', purpose: 'Client Architecture Walkthrough' },
+        { resource_id: workstation.id, user_id: member1.id, start_time: makeDate(-1, 13), end_time: makeDate(-1, 15), status: 'confirmed', purpose: 'Deep Learning Model Training Batch' },
+        { resource_id: roomBeta.id, user_id: member1.id, start_time: makeDate(0, 14), end_time: makeDate(0, 16), status: 'confirmed', purpose: 'Design Review with Engineering' },
+        { resource_id: roomGamma.id, user_id: member2.id, start_time: makeDate(0, 16), end_time: makeDate(0, 18), status: 'confirmed', purpose: 'Hands-on Cloud Workshop' },
+        { resource_id: roomAlpha.id, user_id: member1.id, start_time: makeDate(1, 10), end_time: makeDate(1, 12), status: 'confirmed', purpose: 'All-Hands Pre-Brief' },
+        { resource_id: roomBeta.id, user_id: member2.id, start_time: makeDate(-1, 9), end_time: makeDate(-1, 11), status: 'cancelled', purpose: 'Cancelled duplicate team catchup' },
+      ];
 
-    // Today bookings (leaving 10:00 -> 12:00 open on Conference Room Alpha for demo!)
-    const todayStart1 = makeDate(0, 14);
-    const todayEnd1 = makeDate(0, 16);
-    const todayStart2 = makeDate(0, 16);
-    const todayEnd2 = makeDate(0, 18);
-
-    // Tomorrow bookings
-    const tmrwStart1 = makeDate(1, 10);
-    const tmrwEnd1 = makeDate(1, 12);
-
-    await client.query(
-      `INSERT INTO bookings (resource_id, user_id, start_time, end_time, status, purpose) VALUES
-        ($1, $2, $3, $4, 'confirmed', 'Q3 Product Strategy Sync'),
-        ($5, $6, $7, $8, 'confirmed', 'Sprint Retrospective & Planning'),
-        ($1, $6, $9, $10, 'confirmed', 'Client Architecture Walkthrough'),
-        ($11, $2, $12, $13, 'confirmed', 'Deep Learning Model Training Batch'),
-        ($5, $2, $14, $15, 'confirmed', 'Design Review with Engineering'),
-        ($16, $6, $17, $18, 'confirmed', 'Hands-on Cloud Workshop'),
-        ($1, $2, $19, $20, 'confirmed', 'All-Hands Pre-Brief'),
-        ($5, $6, $9, $10, 'cancelled', 'Cancelled duplicate team catchup');`,
-      [
-        roomAlpha.id, member1.id, pastStart1, pastEnd1,
-        roomBeta.id, member2.id, pastStart2, pastEnd2,
-        roomAlpha.id, member2.id, yestStart1, yestEnd1,
-        workstation.id, member1.id, yestStart2, yestEnd2,
-        roomBeta.id, member1.id, todayStart1, todayEnd1,
-        roomGamma.id, member2.id, todayStart2, todayEnd2,
-        roomAlpha.id, member1.id, tmrwStart1, tmrwEnd1
-      ]
-    );
-
-    console.log('📅 Seeded realistic past, today, and future bookings.');
+      for (const b of sampleBookings) {
+        await client.query(
+          `INSERT INTO bookings (resource_id, user_id, start_time, end_time, status, purpose)
+           VALUES ($1, $2, $3, $4, $5, $6);`,
+          [b.resource_id, b.user_id, b.start_time, b.end_time, b.status, b.purpose]
+        );
+      }
+      console.log('📅 Seeded realistic initial bookings.');
+    } else {
+      console.log(`📅 Bookings table already has ${bookingCount} existing bookings. Preserving data.`);
+    }
 
     await client.query('COMMIT');
     console.log('🎉 Database seeding completed successfully!');

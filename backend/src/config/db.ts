@@ -5,13 +5,20 @@ import { getMigrationSql } from '../db/migrate';
 
 dotenv.config();
 
+// Enforce production mode if on cloud/Render or DATABASE_URL provided
+if (!process.env.NODE_ENV && (process.env.DATABASE_URL || process.env.RENDER)) {
+  process.env.NODE_ENV = 'production';
+}
+
 const connectionString = process.env.DATABASE_URL || 'postgres://spacesync_user:spacesync_password@localhost:5432/spacesync_db';
+
+export const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.DATABASE_URL);
 
 const isCloudDb = connectionString.includes('sslmode=require') || 
                   connectionString.includes('neon.tech') || 
                   connectionString.includes('supabase.co') ||
                   connectionString.includes('render.com') ||
-                  process.env.NODE_ENV === 'production';
+                  isProduction;
 
 export const pool = new Pool({
   connectionString,
@@ -21,11 +28,46 @@ export const pool = new Pool({
   connectionTimeoutMillis: isCloudDb ? 10000 : 3000, // 10s for serverless cloud TLS/cold start
 });
 
+// Authoritative production flag: Production NEVER uses embedded in-memory store
 export let isUsingEmbeddedStore = false;
 
-// Seed helper for PostgreSQL initialization if tables are empty
-async function autoInitPostgres(client: PoolClient) {
+/**
+ * Boot-time database readiness verifier.
+ * Executes migrations and ensures authoritative resources exist before the server starts listening.
+ */
+export async function ensureDatabaseReady(): Promise<void> {
+  console.log(`📡 Initializing SpaceSync Database (${isProduction ? 'Authoritative PostgreSQL / Cloud' : 'Development'})...`);
+  
+  let client: PoolClient | null = null;
+  const maxAttempts = 5;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      client = await pool.connect();
+      isUsingEmbeddedStore = false;
+      break;
+    } catch (err: any) {
+      if (attempt === maxAttempts) {
+        console.error(`❌ Fatal: Could not connect to PostgreSQL after ${maxAttempts} attempts: ${err.message}`);
+        if (isProduction) {
+          throw err; // In production, throw fatal error to avoid silent split-brain
+        }
+        console.log('⚡ Using SpaceSync Embedded Relational Engine (local development offline fallback only).');
+        isUsingEmbeddedStore = true;
+        return;
+      }
+      console.warn(`⏳ PostgreSQL connection attempt ${attempt}/${maxAttempts} failed: ${err.message}. Retrying in 2s...`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+
+  if (!client) return;
+
   try {
+    const dbInfo = await client.query('SELECT current_database(), current_user;');
+    console.log(`✅ Connected to authoritative database: [${dbInfo.rows[0].current_database}] as user: [${dbInfo.rows[0].current_user}]`);
+
+    // 1. Check if schema tables exist; if not, apply migrations
     const tableCheck = await client.query(
       "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'resources');"
     );
@@ -38,61 +80,50 @@ async function autoInitPostgres(client: PoolClient) {
       console.log('✅ Automated schema migration applied successfully.');
     }
 
+    // 2. Check resource inventory; if empty, run initial seed
     const countRes = await client.query('SELECT COUNT(*) FROM resources;');
-    if (parseInt(countRes.rows[0]?.count, 10) === 0) {
-      console.log('🌱 Seeding initial resources with deterministic IDs in PostgreSQL...');
+    const resourceCount = parseInt(countRes.rows[0]?.count || '0', 10);
+    console.log(`📊 Authoritative database resource count: ${resourceCount}`);
+
+    if (resourceCount === 0) {
+      console.log('🌱 Resources table is empty. Seeding initial resources with deterministic IDs...');
       const { seedDatabase } = await import('../db/seed');
       await seedDatabase();
-      console.log('✅ Initial seed completed.');
+      console.log('✅ Initial seed completed successfully.');
     }
   } catch (err: any) {
-    console.warn('⚠️ Auto-init notice (PostgreSQL):', err.message);
+    console.error('❌ Database schema/seed initialization notice:', err.message);
+    if (isProduction) {
+      throw err;
+    }
+  } finally {
+    client.release();
   }
 }
 
-// Check connection on boot
-pool.connect()
-  .then(async (client) => {
-    isUsingEmbeddedStore = false;
-    console.log('✅ PostgreSQL Connection Pool initialized successfully.');
-    await autoInitPostgres(client);
-    client.release();
-  })
-  .catch((err) => {
-    // Only fall back to embedded store if local development without Docker, or if explicitly needed
-    isUsingEmbeddedStore = true;
-    console.log('⚡ Using SpaceSync Embedded Relational Engine (PostgreSQL not detected or timed out).');
-    console.log('   All features, seed data, and double-booking collision guards are 100% active!');
+// Check connection immediately on import for non-server runners (e.g. CLI/tests)
+if (process.env.NODE_ENV !== 'test') {
+  ensureDatabaseReady().catch((err) => {
+    if (isProduction) {
+      console.error('❌ Critical database initialization error:', err.message);
+    }
   });
+}
 
 export const query = async (text: string, params?: any[]) => {
   if (isUsingEmbeddedStore && process.env.NODE_ENV !== 'test') {
     return embeddedStore.executeQuery(text, params);
   }
-  try {
-    return await pool.query(text, params);
-  } catch (err: any) {
-    // If local postgres is down in development, fallback seamlessly
-    if (err.code === 'ECONNREFUSED' || err.message?.includes('connect') || err.message?.includes('timeout')) {
-      isUsingEmbeddedStore = true;
-      return embeddedStore.executeQuery(text, params);
-    }
-    throw err;
-  }
+  return await pool.query(text, params);
 };
 
 export const getClient = async (): Promise<PoolClient> => {
-  try {
-    return await pool.connect();
-  } catch (err: any) {
-    if (isUsingEmbeddedStore || process.env.NODE_ENV !== 'production') {
-      isUsingEmbeddedStore = true;
-      const mockClient: any = {
-        query: (sql: string, params?: any[]) => embeddedStore.executeQuery(sql, params),
-        release: () => {},
-      };
-      return mockClient as PoolClient;
-    }
-    throw err;
+  if (isUsingEmbeddedStore && process.env.NODE_ENV !== 'test') {
+    const mockClient: any = {
+      query: (sql: string, params?: any[]) => embeddedStore.executeQuery(sql, params),
+      release: () => {},
+    };
+    return mockClient as PoolClient;
   }
+  return await pool.connect();
 };

@@ -1,27 +1,37 @@
 import app from './app';
-import { pool } from './config/db';
+import { pool, ensureDatabaseReady, isProduction } from './config/db';
+
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'production';
+}
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, async () => {
-  console.log(`=========================================`);
-  console.log(`🚀 SpaceSync Backend running on port ${PORT}`);
-  console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
-  console.log(`🩺 Health Check:      http://localhost:${PORT}/api/health`);
-  console.log(`=========================================`);
-
+async function startServer() {
   try {
-    const res = await pool.query('SELECT current_database(), current_user;');
-    console.log(`✅ Connected to PostgreSQL database: [${res.rows[0].current_database}] as user: [${res.rows[0].current_user}]`);
+    await ensureDatabaseReady();
   } catch (err: any) {
-    console.warn(`⚠️ PostgreSQL connection notice: ${err.message}`);
-    console.warn(`👉 Make sure DATABASE_URL is configured or run 'docker compose up -d' for local database.`);
+    console.error('💥 Fatal database initialization failure:', err.message);
+    if (isProduction) {
+      process.exit(1);
+    }
   }
-});
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received. Closing HTTP server and database pool.');
-  server.close(() => {
-    pool.end();
+  const server = app.listen(PORT, () => {
+    console.log(`=========================================`);
+    console.log(`🚀 SpaceSync Backend running on port ${PORT}`);
+    console.log(`🌍 Active Environment: ${process.env.NODE_ENV}`);
+    console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
+    console.log(`🩺 Health Check:      http://localhost:${PORT}/api/health`);
+    console.log(`=========================================`);
   });
-});
+
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received. Closing HTTP server and database pool.');
+    server.close(() => {
+      pool.end();
+    });
+  });
+}
+
+startServer();

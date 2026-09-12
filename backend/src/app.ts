@@ -16,6 +16,10 @@ import { NotFoundError } from './utils/errors';
 
 dotenv.config();
 
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'production';
+}
+
 const app = express();
 
 // Security and middleware
