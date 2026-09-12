@@ -12,6 +12,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.post('/', createBooking);
+router.get('/my', getBookings);
 router.get('/', getBookings);
 router.get('/:id', getBookingById);
 router.patch('/:id/cancel', cancelBooking);

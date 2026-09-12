@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export interface EmbeddedUser {
   id: string;
@@ -264,6 +265,11 @@ class EmbeddedStore {
     await this.init();
     const s = sql.trim();
 
+    // Transaction commands
+    if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') {
+      return { rows: [], rowCount: 0 };
+    }
+
     // 1. Health check
     if (s === 'SELECT 1') {
       return { rows: [{ '?column?': 1 }], rowCount: 1 };
@@ -388,7 +394,7 @@ class EmbeddedStore {
       }
 
       const newBooking: EmbeddedBooking = {
-        id: `b-${Date.now()}`,
+        id: crypto.randomUUID(),
         resource_id: resourceId,
         user_id: userId,
         start_time: start,

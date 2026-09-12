@@ -17,10 +17,10 @@ export async function seedDatabase() {
     const memberPasswordHash = await bcrypt.hash('Member123!', 10);
 
     const userRes = await client.query(
-      `INSERT INTO users (name, email, password_hash, role) VALUES
-        ('SpaceSync Admin', 'admin@spacesync.io', $1, 'admin'),
-        ('Alex Johnson', 'member1@spacesync.io', $2, 'member'),
-        ('Sarah Chen', 'member2@spacesync.io', $2, 'member')
+      `INSERT INTO users (id, name, email, password_hash, role) VALUES
+        ('00000000-0000-0000-0000-000000000001', 'SpaceSync Admin', 'admin@spacesync.io', $1, 'admin'),
+        ('00000000-0000-0000-0000-000000000002', 'Alex Johnson', 'member1@spacesync.io', $2, 'member'),
+        ('00000000-0000-0000-0000-000000000003', 'Sarah Chen', 'member2@spacesync.io', $2, 'member')
       RETURNING id, email, role;`,
       [adminPasswordHash, memberPasswordHash]
     );
@@ -31,16 +31,16 @@ export async function seedDatabase() {
 
     console.log(`👤 Seeded ${userRes.rows.length} users (Admin & Members).`);
 
-    // 3. Insert Diverse Resources
+    // 3. Insert Diverse Resources with deterministic UUIDs
     const resourceRes = await client.query(
-      `INSERT INTO resources (name, type, location, capacity, description, status) VALUES
-        ('Conference Room Alpha', 'conference_room', 'Building A, Floor 3', 20, 'Equipped with dual 4K displays, Polycom conference audio, and video framing.', 'active'),
-        ('Meeting Room Beta', 'meeting_room', 'Building A, Floor 2', 6, 'Compact team room with digital whiteboard and wireless screen projection.', 'active'),
-        ('Training Room Gamma', 'training_room', 'Building B, Floor 1', 35, 'Large tiered training classroom with podium mic, dual projectors, and modular desks.', 'active'),
-        ('4K Cinema Projector 01', 'projector', 'Tech Hub Equipment Locker #4', 1, 'Optoma 4K UHD 5000 Lumens laser projector with HDMI 2.1 & wireless dongle.', 'active'),
-        ('AI Workstation 01', 'workstation', 'Innovation Lab - Desk 14', 1, 'High-performance workstation with dual NVIDIA RTX 4090 GPUs, 128GB RAM, and Ubuntu OS.', 'active'),
-        ('Research Lab Bench 01', 'lab_equipment', 'Science Wing 102', 4, 'Equipped with stereo microscope, precision balance, fume extraction, and ESD bench.', 'active'),
-        ('Quiet Study Pod 04', 'study_space', 'Library Mezzanine', 2, 'Acoustically isolated pod with sit/stand desk, ergonomic chairs, and fast USB-C power.', 'active')
+      `INSERT INTO resources (id, name, type, location, capacity, description, status) VALUES
+        ('11111111-1111-1111-1111-111111111111', 'Conference Room Alpha', 'conference_room', 'Building A, Floor 3', 20, 'Equipped with dual 4K displays, Polycom conference audio, and video framing.', 'active'),
+        ('11111111-1111-1111-1111-111111111112', 'Meeting Room Beta', 'meeting_room', 'Building A, Floor 2', 6, 'Compact team room with digital whiteboard and wireless screen projection.', 'active'),
+        ('11111111-1111-1111-1111-111111111113', 'Training Room Gamma', 'training_room', 'Building B, Floor 1', 35, 'Large tiered training classroom with podium mic, dual projectors, and modular desks.', 'active'),
+        ('11111111-1111-1111-1111-111111111114', '4K Cinema Projector 01', 'projector', 'Tech Hub Equipment Locker #4', 1, 'Optoma 4K UHD 5000 Lumens laser projector with HDMI 2.1 & wireless dongle.', 'active'),
+        ('11111111-1111-1111-1111-111111111115', 'AI Workstation 01', 'workstation', 'Innovation Lab - Desk 14', 1, 'High-performance workstation with dual NVIDIA RTX 4090 GPUs, 128GB RAM, and Ubuntu OS.', 'active'),
+        ('11111111-1111-1111-1111-111111111116', 'Research Lab Bench 01', 'lab_equipment', 'Science Wing 102', 4, 'Equipped with stereo microscope, precision balance, fume extraction, and ESD bench.', 'active'),
+        ('11111111-1111-1111-1111-111111111117', 'Quiet Study Pod 04', 'study_space', 'Library Mezzanine', 2, 'Acoustically isolated pod with sit/stand desk, ergonomic chairs, and fast USB-C power.', 'active')
       RETURNING id, name, type;`
     );
 

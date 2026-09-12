@@ -25,6 +25,8 @@ app.use(helmet({
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'https://space-sync-one.vercel.app',
+  'https://spacesync-frontend.vercel.app',
   process.env.CLIENT_URL,
 ].filter(Boolean) as string[];
 
@@ -32,10 +34,15 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      process.env.NODE_ENV !== 'production'
+    ) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev/cloud demo, adjustable via CLIENT_URL
+    return callback(new Error(`Origin ${origin} not allowed by CORS policy`));
   },
   credentials: true,
 }));
@@ -46,11 +53,43 @@ if (process.env.NODE_ENV !== 'test') {
 
 app.use(express.json());
 
+// Helper to contextualize Swagger servers to the active deployment
+function getContextualSwaggerSpec(req: Request) {
+  const host = req.get('host') || 'localhost:5000';
+  const forwardedProto = req.get('x-forwarded-proto');
+  const protocol = forwardedProto || req.protocol || (host.includes('localhost') ? 'http' : 'https');
+  const currentOriginServer = `${protocol}://${host}/api`;
+
+  const existingServers = (swaggerSpec as any).servers || [];
+  const dedupedServers = existingServers.filter(
+    (s: any) => s.url !== currentOriginServer && s.url !== '/api'
+  );
+
+  return {
+    ...swaggerSpec,
+    servers: [
+      {
+        url: currentOriginServer,
+        description: 'Current API Server (Auto-Detected)',
+      },
+      {
+        url: '/api',
+        description: 'Relative API Path (/api)',
+      },
+      ...dedupedServers,
+    ],
+  };
+}
+
 // Interactive API Documentation (Swagger/OpenAPI)
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api/docs', swaggerUi.serve, (req: Request, res: Response, next: NextFunction) => {
+  const spec = getContextualSwaggerSpec(req);
+  swaggerUi.setup(spec)(req, res, next);
+});
+
 app.get('/api/docs.json', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
+  res.send(getContextualSwaggerSpec(req));
 });
 
 // REST API Routes

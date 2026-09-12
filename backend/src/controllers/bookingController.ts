@@ -7,9 +7,9 @@ import { AuthenticatedRequest } from '../types';
 export async function createBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let client: any;
   try {
-    client = await pool.connect();
-  } catch {
     client = await getClient();
+  } catch (err) {
+    return next(err);
   }
   try {
     if (!req.user) {
@@ -103,7 +103,9 @@ export async function createBooking(req: AuthenticatedRequest, res: Response, ne
     }
     return next(err);
   } finally {
-    client.release();
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
   }
 }
 

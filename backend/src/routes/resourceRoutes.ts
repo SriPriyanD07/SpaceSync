@@ -18,6 +18,7 @@ router.get('/:id', getResourceById);
 
 // Admin-only management routes
 router.post('/', authenticateToken, requireRole('admin'), createResource);
+router.put('/:id', authenticateToken, requireRole('admin'), updateResource);
 router.patch('/:id', authenticateToken, requireRole('admin'), updateResource);
 router.delete('/:id', authenticateToken, requireRole('admin'), deleteResource);
 

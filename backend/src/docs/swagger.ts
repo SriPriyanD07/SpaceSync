@@ -21,16 +21,47 @@ Engineered with transaction-safe scheduling, database-level double-booking exclu
         email: 'api@spacesync.io',
       },
     },
-    servers: [
-      {
-        url: 'http://localhost:5000/api',
-        description: 'Local Development Server',
-      },
-      {
-        url: 'https://spacesync-api.onrender.com/api',
-        description: 'Production Render Deployment',
-      },
-    ],
+    servers: (() => {
+      const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RENDER_EXTERNAL_URL;
+      const productionUrl = process.env.RENDER_EXTERNAL_URL 
+        ? `${process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '')}/api`
+        : (process.env.BACKEND_URL 
+          ? `${process.env.BACKEND_URL.replace(/\/+$/, '')}/api`
+          : 'https://spacesync-0uis.onrender.com/api');
+      const localUrl = `http://localhost:${process.env.PORT || 5000}/api`;
+
+      if (isProduction) {
+        return [
+          {
+            url: productionUrl,
+            description: 'Production Render Deployment',
+          },
+          {
+            url: '/api',
+            description: 'Current Origin (Relative /api)',
+          },
+          {
+            url: localUrl,
+            description: 'Local Development Server',
+          },
+        ];
+      }
+
+      return [
+        {
+          url: localUrl,
+          description: 'Local Development Server',
+        },
+        {
+          url: productionUrl,
+          description: 'Production Render Deployment',
+        },
+        {
+          url: '/api',
+          description: 'Current Origin (Relative /api)',
+        },
+      ];
+    })(),
     components: {
       securitySchemes: {
         BearerAuth: {
@@ -238,6 +269,33 @@ Engineered with transaction-safe scheduling, database-level double-booking exclu
             404: { description: 'Resource not found' },
           },
         },
+        put: {
+          summary: 'Update resource (Admin Only) - Full/Partial Replacement',
+          tags: ['Resources'],
+          security: [{ BearerAuth: [] }],
+          parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    type: { type: 'string' },
+                    location: { type: 'string' },
+                    capacity: { type: 'integer' },
+                    description: { type: 'string' },
+                    status: { type: 'string', enum: ['active', 'maintenance', 'inactive'] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'Resource updated successfully' },
+            403: { description: 'Admin access required' },
+          },
+        },
         patch: {
           summary: 'Update resource (Admin Only)',
           tags: ['Resources'],
@@ -333,6 +391,20 @@ Engineered with transaction-safe scheduling, database-level double-booking exclu
           },
         },
       },
+      '/bookings/my': {
+        get: {
+          summary: 'List current user active and past bookings',
+          tags: ['Bookings'],
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'status', in: 'query', schema: { type: 'string', enum: ['confirmed', 'cancelled'] } },
+            { name: 'date', in: 'query', schema: { type: 'string', format: 'date' } },
+          ],
+          responses: {
+            200: { description: 'List of reservations owned by current user' },
+          },
+        },
+      },
       '/bookings/{id}/cancel': {
         patch: {
           summary: 'Cancel a booking and release the time slot',
@@ -342,6 +414,25 @@ Engineered with transaction-safe scheduling, database-level double-booking exclu
           responses: {
             200: { description: 'Booking cancelled and slot freed' },
             403: { description: 'Forbidden: Cannot cancel another member\'s booking' },
+          },
+        },
+      },
+      '/admin/bookings': {
+        get: {
+          summary: 'Global reservation audit ledger with filtering (Admin Only)',
+          tags: ['Admin & Analytics'],
+          security: [{ BearerAuth: [] }],
+          parameters: [
+            { name: 'resource_id', in: 'query', schema: { type: 'string', format: 'uuid' } },
+            { name: 'user_id', in: 'query', schema: { type: 'string', format: 'uuid' } },
+            { name: 'status', in: 'query', schema: { type: 'string', enum: ['confirmed', 'cancelled'] } },
+            { name: 'date', in: 'query', schema: { type: 'string', format: 'date' } },
+            { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+            { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+          ],
+          responses: {
+            200: { description: 'Master booking audit list across entire organization' },
+            403: { description: 'Admin access required' },
           },
         },
       },
