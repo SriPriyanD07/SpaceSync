@@ -190,12 +190,15 @@ describe('Authentication, RBAC & Resource Management', () => {
     jest.restoreAllMocks();
   });
 
-  describe('Health Endpoint', () => {
-    test('GET /api/health should return ok and connected database', async () => {
+  describe('Health Endpoint & Multi-Instance Load Balancing Headers', () => {
+    test('GET /api/health should return ok and connected database with instance identification headers', async () => {
       const res = await request(app).get('/api/health');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
       expect(res.body.database).toBe('connected');
+      expect(res.body.instance).toBeDefined();
+      expect(res.headers['x-served-by']).toBeDefined();
+      expect(res.headers['x-backend-instance']).toBeDefined();
     });
   });
 

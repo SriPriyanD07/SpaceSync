@@ -10,7 +10,8 @@
     "migrate": "ts-node src/db/migrate.ts",
     "seed": "ts-node src/db/seed.ts",
     "test": "jest --detectOpenHandles --forceExit --runInBand",
-    "test:coverage": "jest --detectOpenHandles --forceExit --runInBand --coverage"
+    "test:coverage": "jest --detectOpenHandles --forceExit --runInBand --coverage",
+    "verify:lb": "node ../scripts/verify-load-balancing.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

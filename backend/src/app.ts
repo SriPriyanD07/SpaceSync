@@ -30,6 +30,7 @@ app.use(helmet({
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:8080',
   'https://space-sync-one.vercel.app',
   'https://spacesync-frontend.vercel.app',
   process.env.CLIENT_URL,
@@ -51,6 +52,14 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// Instance identification headers for multi-instance load balancing observability
+const instanceId = process.env.INSTANCE_ID || process.env.HOSTNAME || 'backend-primary';
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Served-By', instanceId);
+  res.setHeader('X-Backend-Instance', instanceId);
+  next();
+});
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));

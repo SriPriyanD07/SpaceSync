@@ -20,10 +20,14 @@ const isCloudDb = connectionString.includes('sslmode=require') ||
                   connectionString.includes('render.com') ||
                   isProduction;
 
+// Sensible connection pool sizing to avoid exhausting Neon connection limits across multiple instances
+const defaultPoolMax = isProduction ? 7 : 10;
+const poolMax = process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX, 10) : defaultPoolMax;
+
 export const pool = new Pool({
   connectionString,
   ssl: isCloudDb ? { rejectUnauthorized: false } : false,
-  max: 20,
+  max: poolMax,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: isCloudDb ? 10000 : 3000, // 10s for serverless cloud TLS/cold start
 });
@@ -49,8 +53,10 @@ export async function ensureDatabaseReady(): Promise<void> {
     } catch (err: any) {
       if (attempt === maxAttempts) {
         console.error(`❌ Fatal: Could not connect to PostgreSQL after ${maxAttempts} attempts: ${err.message}`);
-        if (isProduction) {
-          throw err; // In production, throw fatal error to avoid silent split-brain
+        // Never fall back to embedded store if production, or if in Docker, or if ALLOW_EMBEDDED_DB is not explicitly true
+        const allowEmbedded = process.env.ALLOW_EMBEDDED_DB === 'true' && !isProduction && process.env.NODE_ENV !== 'production';
+        if (!allowEmbedded) {
+          throw err;
         }
         console.log('⚡ Using SpaceSync Embedded Relational Engine (local development offline fallback only).');
         isUsingEmbeddedStore = true;

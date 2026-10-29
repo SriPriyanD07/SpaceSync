@@ -11,13 +11,13 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const start = Date.now();
-    const dbRes = await query('SELECT 1, current_database() as db_name;');
+    await query('SELECT 1');
     const latencyMs = Date.now() - start;
 
     return res.status(200).json({
       status: 'ok',
+      instance: process.env.INSTANCE_ID || process.env.HOSTNAME || 'backend-primary',
       database: isUsingEmbeddedStore ? 'embedded' : 'connected',
-      databaseName: isUsingEmbeddedStore ? 'embedded' : dbRes.rows[0]?.db_name,
       uptime: process.uptime(),
       latency: `${latencyMs}ms`,
       timestamp: new Date().toISOString(),
@@ -26,6 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(503).json({
       status: 'error',
+      instance: process.env.INSTANCE_ID || process.env.HOSTNAME || 'backend-primary',
       database: 'disconnected',
       message: 'Database connection failed',
       timestamp: new Date().toISOString(),
