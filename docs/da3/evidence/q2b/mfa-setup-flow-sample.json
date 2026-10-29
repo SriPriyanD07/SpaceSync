@@ -1,0 +1,85 @@
+{
+  "q2b_demonstration": "SpaceSync TOTP Multi-Factor Authentication & RBAC Evidence",
+  "rfc_standard": "RFC 6238 Time-Based One-Time Password Algorithm",
+  "totp_parameters": {
+    "algorithm": "SHA1",
+    "digits": 6,
+    "period_seconds": 30,
+    "window_tolerance": 1
+  },
+  "mfa_lifecycle_flow": {
+    "step_1_setup_initiation": {
+      "endpoint": "POST /api/auth/mfa/setup",
+      "headers": { "Authorization": "Bearer <alice_jwt>" },
+      "response": {
+        "message": "MFA setup initiated. Scan the QR code or enter the secret manually, then verify with a 6-digit code.",
+        "secret": "JBSWY3DPEHPK3PXPEXAMPLE",
+        "otpauth": "otpauth://totp/SpaceSync:alice%40spacesync.io?secret=JBSWY3DPEHPK3PXPEXAMPLE&issuer=SpaceSync",
+        "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIEAYAAAD9AFwa..."
+      }
+    },
+    "step_2_activation": {
+      "endpoint": "POST /api/auth/mfa/enable",
+      "headers": { "Authorization": "Bearer <alice_jwt>" },
+      "request_body": { "totpCode": "482910" },
+      "response": {
+        "message": "Two-Factor Authentication (TOTP MFA) has been successfully enabled on your account.",
+        "mfa_enabled": true
+      }
+    },
+    "step_3_challenge_login": {
+      "endpoint": "POST /api/auth/login",
+      "request_body": { "email": "alice@spacesync.io", "password": "AlicePassword2026!" },
+      "response": {
+        "message": "MFA authentication code required",
+        "mfaRequired": true,
+        "mfaToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InUtYWxpY2UiLCJtZmFSZXF1aXJlZCI6dHJ1ZX0..."
+      }
+    },
+    "step_4_challenge_verification": {
+      "endpoint": "POST /api/auth/mfa/verify",
+      "request_body": {
+        "mfaToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "totpCode": "839201"
+      },
+      "response": {
+        "message": "MFA verification successful",
+        "mfaRequired": false,
+        "user": {
+          "id": "u-mem-01",
+          "name": "Alice Member",
+          "email": "alice@spacesync.io",
+          "role": "member",
+          "mfa_enabled": true,
+          "created_at": "2026-10-29T19:30:00.000Z"
+        },
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6InUtYWxpY2UiLCJyb2xlIjoibWVtYmVyIn0..."
+      }
+    }
+  },
+  "rbac_matrix": {
+    "unauthenticated": {
+      "POST /api/bookings": 401,
+      "POST /api/resources": 401,
+      "DELETE /api/resources/:id": 401
+    },
+    "member_role": {
+      "POST /api/bookings": 201,
+      "GET /api/bookings/my": 200,
+      "PATCH /api/bookings/:own_id/cancel": 200,
+      "PATCH /api/bookings/:other_user_id/cancel": 403,
+      "POST /api/resources": 403,
+      "PUT /api/resources/:id": 403,
+      "DELETE /api/resources/:id": 403,
+      "GET /api/admin/statistics": 403
+    },
+    "admin_role": {
+      "POST /api/resources": 201,
+      "PUT /api/resources/:id": 200,
+      "DELETE /api/resources/:id": 200,
+      "GET /api/bookings": 200,
+      "PATCH /api/bookings/:any_id/cancel": 200,
+      "GET /api/admin/statistics": 200
+    }
+  }
+}

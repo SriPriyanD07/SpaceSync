@@ -87,9 +87,28 @@ async function runTest() {
 
   let stoppedTriggered = false;
   let stopTimestamp = null;
+  let stopDurationMs = null;
+  let containerStateBefore = 'unknown';
+  let containerStateAfterStop = 'unknown';
+  let containerRestored = false;
   const results = [];
   const statusCounts = {};
   const instanceCounts = {};
+
+  // Pre-test container state verification
+  try {
+    const isRunning = execSync(`docker inspect -f "{{.State.Running}}" ${CONTAINER_TO_STOP}`, { encoding: 'utf8' }).trim();
+    containerStateBefore = isRunning === 'true' ? 'running' : 'stopped';
+    if (isRunning !== 'true') {
+      console.log(`⚠️ Container [${CONTAINER_TO_STOP}] is not currently running. Starting it prior to test...`);
+      execSync(`docker start ${CONTAINER_TO_STOP}`, { stdio: 'ignore' });
+      await sleep(4000);
+      containerStateBefore = 're-started';
+    }
+  } catch (err) {
+    console.warn(`Warning: Could not inspect container state before test: ${err.message}`);
+  }
+  console.log(`[PRE-FLIGHT] Container [${CONTAINER_TO_STOP}] initial state: ${containerStateBefore}`);
 
   let requestIndex = 0;
   const startTime = Date.now();
@@ -105,9 +124,13 @@ async function runTest() {
         stoppedTriggered = true;
         stopTimestamp = new Date().toISOString();
         console.log(`\n⚡ [INTERRUPTION TRIGGERED] Stopping container [${CONTAINER_TO_STOP}] at request #${currentReq}...`);
+        const stopStart = Date.now();
         try {
           execSync(`docker stop ${CONTAINER_TO_STOP}`, { stdio: 'ignore' });
-          console.log(`🛑 [STOPPED] Container [${CONTAINER_TO_STOP}] successfully terminated mid-traffic.\n`);
+          stopDurationMs = Date.now() - stopStart;
+          const isRunningAfter = execSync(`docker inspect -f "{{.State.Running}}" ${CONTAINER_TO_STOP}`, { encoding: 'utf8' }).trim();
+          containerStateAfterStop = isRunningAfter === 'true' ? 'running' : 'stopped';
+          console.log(`🛑 [STOPPED] Container [${CONTAINER_TO_STOP}] stopped in ${stopDurationMs}ms (State: ${containerStateAfterStop}).\n`);
         } catch (e) {
           console.error(`Failed to stop container: ${e.message}`);
         }
@@ -127,8 +150,24 @@ async function runTest() {
     }
   }
 
-  const workers = Array.from({ length: CONCURRENCY }, () => worker());
-  await Promise.all(workers);
+  try {
+    const workers = Array.from({ length: CONCURRENCY }, () => worker());
+    await Promise.all(workers);
+  } finally {
+    // Guaranteed recovery: restart the stopped container after the experiment phase completes
+    if (stoppedTriggered) {
+      console.log(`\n🔄 [CLEANUP / RESTORATION] Restoring container [${CONTAINER_TO_STOP}]...`);
+      try {
+        execSync(`docker start ${CONTAINER_TO_STOP}`, { stdio: 'ignore' });
+        await sleep(3000);
+        const restoredState = execSync(`docker inspect -f "{{.State.Running}}" ${CONTAINER_TO_STOP}`, { encoding: 'utf8' }).trim();
+        containerRestored = restoredState === 'true';
+        console.log(`✅ [RESTORED] Container [${CONTAINER_TO_STOP}] running: ${containerRestored}\n`);
+      } catch (err) {
+        console.error(`Failed to restore container ${CONTAINER_TO_STOP}: ${err.message}`);
+      }
+    }
+  }
 
   const totalDurationSeconds = (Date.now() - startTime) / 1000;
   const successfulRequests = results.filter((r) => r.success).length;
@@ -167,6 +206,10 @@ async function runTest() {
     total_requests: TOTAL_REQUESTS,
     concurrency: CONCURRENCY,
     stopped_container: CONTAINER_TO_STOP,
+    container_state_before: containerStateBefore,
+    container_state_after_stop: containerStateAfterStop,
+    stop_duration_ms: stopDurationMs,
+    container_restored: containerRestored,
     interruption_request_index: STOP_TRIGGER_REQ,
     interruption_timestamp: stopTimestamp,
     total_duration_seconds: totalDurationSeconds,

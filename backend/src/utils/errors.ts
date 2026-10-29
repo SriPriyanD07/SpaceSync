@@ -45,3 +45,10 @@ export class ValidationError extends AppError {
     this.name = 'ValidationError';
   }
 }
+
+export class BadRequestError extends AppError {
+  constructor(message: string = 'Bad request') {
+    super(message, 400);
+    this.name = 'BadRequest';
+  }
+}

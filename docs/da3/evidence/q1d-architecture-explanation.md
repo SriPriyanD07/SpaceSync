@@ -47,7 +47,7 @@ Neon Serverless PostgreSQL 18 (ep-morning-tree-b3yub052)
 - **External Local Entry Point:** Local client traffic targets `http://localhost:8081` (mapped to port 80 of `spacesync-nginx-lb`). Port 8081 was selected because the host Windows machine has Oracle XML DB / TNSLSNR bound to port 8080.
 - **Internal Docker Network:** Containers communicate over the private bridge network `spacesync-network` using service DNS names (`backend-1:5000`, `backend-2:5000`, `backend-3:5000`).
 - **Database Connection Security:** Every backend instance initiates outbound TLS connections directly to `ep-morning-tree-b3yub052-pooler.c-4.ap-southeast-1.aws.neon.tech:5432`.
-- **Concurrency & Double-Booking Protection:** Concurrency safety is enforced at the database layer via PostgreSQL range exclusion constraints (`CONSTRAINT no_double_booking EXCLUDE USING gist (resource_id WITH =, tstzrange(start_time, end_time) WITH &&)`). Because the lock is held inside Neon, all three backend instances can accept reservations concurrently with 100% mathematical zero-conflict guarantees.
+- **Concurrency & Double-Booking Protection:** PostgreSQL exclusion constraints prevent overlapping reservations that violate the defined constraint for the same resource. This provides database-level protection against double-booking across backend instances, subject to the constraint definition and transaction behaviour (`CONSTRAINT no_double_booking EXCLUDE USING gist (resource_id WITH =, tstzrange(start_time, end_time) WITH &&)`). Because constraint evaluation is enforced atomically inside Neon, concurrent reservation attempts for overlapping time ranges are rejected at the database engine level with unique/exclusion constraint violation codes (`23P01`).
 
 ---
 

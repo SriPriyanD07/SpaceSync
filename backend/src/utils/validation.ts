@@ -12,6 +12,20 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const mfaVerifySchema = z.object({
+  mfaToken: z.string().min(1, 'MFA challenge token is required'),
+  totpCode: z.string().regex(/^\d{6}$/, 'TOTP code must be exactly 6 numeric digits'),
+});
+
+export const mfaEnableSchema = z.object({
+  totpCode: z.string().regex(/^\d{6}$/, 'TOTP code must be exactly 6 numeric digits'),
+});
+
+export const mfaDisableSchema = z.object({
+  password: z.string().min(1, 'Current password is required to disable MFA'),
+  totpCode: z.string().regex(/^\d{6}$/, 'TOTP code must be exactly 6 numeric digits').optional(),
+});
+
 export const resourceTypeEnum = z.enum([
   'meeting_room',
   'conference_room',
