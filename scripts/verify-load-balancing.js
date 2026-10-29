@@ -10,6 +10,31 @@
  * - backend-3
  */
 
+const fs = require('fs');
+const path = require('path');
+
+// Auto-load root .env or backend/.env if present (zero-dependency)
+try {
+  const envPath = path.join(__dirname, '..', '.env');
+  const backendEnvPath = path.join(__dirname, '..', 'backend', '.env');
+  const targetEnv = fs.existsSync(envPath) ? envPath : (fs.existsSync(backendEnvPath) ? backendEnvPath : null);
+  if (targetEnv) {
+    const envContent = fs.readFileSync(targetEnv, 'utf8');
+    for (const line of envContent.split(/\r?\n/)) {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const key = match[1];
+        let value = match[2] || '';
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        if (!process.env[key]) {
+          process.env[key] = value.trim();
+        }
+      }
+    }
+  }
+} catch {}
+
 const NGINX_PORT = process.env.NGINX_PORT || '8080';
 const TARGET_URL = process.env.TARGET_URL || process.argv[2] || `http://localhost:${NGINX_PORT}/api/health`;
 const RESOURCES_URL = TARGET_URL.replace(/\/(api\/)?health\/?$/, '/api/resources');
