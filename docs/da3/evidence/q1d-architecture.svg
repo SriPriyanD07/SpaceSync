@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 850" width="100%" height="100%" style="background:#090d16; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="lbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#065f46"/>
+      <stop offset="100%" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6b21a8"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </linearGradient>
+    <linearGradient id="burstGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#c084fc"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+
+  <!-- Title & Metadata -->
+  <text x="40" y="45" fill="#f8fafc" font-size="22" font-weight="700" letter-spacing="-0.5">SpaceSync — Multi-Instance Scaling &amp; Cloud Bursting Architecture</text>
+  <text x="40" y="70" fill="#94a3b8" font-size="13">BACSE344 Cloud Infrastructure and Architecture · Digital Assignment 3 · Question 1(d)</text>
+
+  <!-- Legend -->
+  <g transform="translate(620, 25)">
+    <rect x="0" y="0" width="440" height="52" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="15" y="18" width="16" height="16" rx="4" fill="#047857" stroke="#34d399" stroke-width="1.5"/>
+    <text x="38" y="31" fill="#e2e8f0" font-size="12">Implemented Local / Prod Components</text>
+    <rect x="230" y="18" width="16" height="16" rx="4" fill="#78350f" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <text x="253" y="31" fill="#fde68a" font-size="12" font-weight="600">PROPOSED Cloud Bursting</text>
+  </g>
+
+  <!-- CLIENT TIER -->
+  <g transform="translate(40, 100)">
+    <rect width="1020" height="90" rx="12" fill="url(#primaryGrad)" stroke="#334155" stroke-width="1" filter="url(#glow)"/>
+    <text x="20" y="25" fill="#94a3b8" font-size="11" font-weight="700" letter-spacing="1">CLIENT &amp; BENCHMARK TIER</text>
+    
+    <!-- User Node -->
+    <rect x="30" y="36" width="280" height="42" rx="8" fill="url(#clientGrad)" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="45" y="62" fill="#ffffff" font-size="13" font-weight="600">User Browser (Next.js Client)</text>
+    
+    <!-- Vercel Hosting -->
+    <rect x="370" y="36" width="310" height="42" rx="8" fill="url(#clientGrad)" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="385" y="55" fill="#ffffff" font-size="12" font-weight="600">Vercel Production Frontend</text>
+    <text x="385" y="70" fill="#93c5fd" font-size="10">https://space-sync-one.vercel.app</text>
+
+    <!-- Benchmark Tool -->
+    <rect x="740" y="36" width="250" height="42" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="755" y="55" fill="#ffffff" font-size="12" font-weight="600">ApacheBench (ab v2.3)</text>
+    <text x="755" y="70" fill="#cbd5e1" font-size="10">1,000 reqs · Concurrency = 15</text>
+  </g>
+
+  <!-- IMPLEMENTED LOCAL DOCKER COMPOSE CLUSTER -->
+  <g transform="translate(40, 220)">
+    <rect width="640" height="430" rx="14" fill="#0b1329" stroke="#10b981" stroke-width="2" filter="url(#glow)"/>
+    <rect x="0" y="0" width="640" height="32" rx="12" fill="#064e3b" opacity="0.4"/>
+    <text x="20" y="21" fill="#6ee7b7" font-size="12" font-weight="700" letter-spacing="0.5">LOCAL DOCKER COMPOSE ORCHESTRATION CLUSTER (IMPLEMENTED Q1a)</text>
+    
+    <!-- Nginx Container -->
+    <rect x="170" y="50" width="300" height="65" rx="10" fill="url(#lbGrad)" stroke="#34d399" stroke-width="2"/>
+    <text x="210" y="74" fill="#ffffff" font-size="14" font-weight="700">Nginx Reverse Proxy LB</text>
+    <text x="185" y="92" fill="#a7f3d0" font-size="11">Container: spacesync-nginx-lb · Port 80</text>
+    <text x="185" y="106" fill="#6ee7b7" font-size="10">Local Endpoint: http://localhost:8081</text>
+
+    <!-- Nginx Routing Arrows -->
+    <path d="M 230 115 L 120 180" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+    <path d="M 320 115 L 320 180" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+    <path d="M 410 115 L 520 180" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+
+    <text x="125" y="145" fill="#a7f3d0" font-size="10" font-weight="600">Round-Robin 1</text>
+    <text x="325" y="145" fill="#a7f3d0" font-size="10" font-weight="600">Round-Robin 2</text>
+    <text x="445" y="145" fill="#a7f3d0" font-size="10" font-weight="600">Round-Robin 3</text>
+
+    <!-- Backend 1 -->
+    <rect x="30" y="190" width="170" height="120" rx="10" fill="url(#nodeGrad)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="45" y="215" fill="#ffffff" font-size="13" font-weight="700">Backend 1</text>
+    <text x="45" y="233" fill="#a7f3d0" font-size="10">spacesync-backend-1</text>
+    <text x="45" y="250" fill="#d1fae5" font-size="10">Node 20 · Express · TS</text>
+    <text x="45" y="268" fill="#d1fae5" font-size="10">Port: 5000 (Internal)</text>
+    <text x="45" y="295" fill="#6ee7b7" font-size="11" font-weight="600">DB_POOL_MAX = 7</text>
+
+    <!-- Backend 2 -->
+    <rect x="235" y="190" width="170" height="120" rx="10" fill="url(#nodeGrad)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="250" y="215" fill="#ffffff" font-size="13" font-weight="700">Backend 2</text>
+    <text x="250" y="233" fill="#a7f3d0" font-size="10">spacesync-backend-2</text>
+    <text x="250" y="250" fill="#d1fae5" font-size="10">Node 20 · Express · TS</text>
+    <text x="250" y="268" fill="#d1fae5" font-size="10">Port: 5000 (Internal)</text>
+    <text x="250" y="295" fill="#6ee7b7" font-size="11" font-weight="600">DB_POOL_MAX = 7</text>
+
+    <!-- Backend 3 -->
+    <rect x="440" y="190" width="170" height="120" rx="10" fill="url(#nodeGrad)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="455" y="215" fill="#ffffff" font-size="13" font-weight="700">Backend 3</text>
+    <text x="455" y="233" fill="#a7f3d0" font-size="10">spacesync-backend-3</text>
+    <text x="455" y="250" fill="#d1fae5" font-size="10">Node 20 · Express · TS</text>
+    <text x="455" y="268" fill="#d1fae5" font-size="10">Port: 5000 (Internal)</text>
+    <text x="455" y="295" fill="#6ee7b7" font-size="11" font-weight="600">DB_POOL_MAX = 7</text>
+
+    <!-- Network Info Banner -->
+    <rect x="30" y="330" width="580" height="35" rx="6" fill="#132a24" stroke="#059669" stroke-width="1"/>
+    <text x="45" y="352" fill="#a7f3d0" font-size="11">Bridge Network: spacesync-network · Failover Retries: proxy_next_upstream</text>
+
+    <!-- Render Production Reference -->
+    <rect x="30" y="380" width="580" height="38" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+    <text x="45" y="403" fill="#94a3b8" font-size="11">Assignment 1 Cloud Backend: Render Web Service · https://spacesync-0uis.onrender.com</text>
+  </g>
+
+  <!-- PROPOSED CLOUD BURSTING COMPONENT (AMBER / DASHED) -->
+  <g transform="translate(710, 220)">
+    <rect width="350" height="430" rx="14" fill="#1c1206" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6 6" filter="url(#glow)"/>
+    <rect x="0" y="0" width="350" height="32" rx="12" fill="#78350f" opacity="0.5"/>
+    <text x="18" y="21" fill="#fde68a" font-size="11" font-weight="800" letter-spacing="0.5">PROPOSED: CLOUD BURSTING COMPONENT</text>
+    <text x="250" y="21" fill="#f59e0b" font-size="10" font-weight="700">[NOT IMPLEMENTED]</text>
+
+    <!-- Cloud Burst Router -->
+    <rect x="25" y="50" width="300" height="65" rx="10" fill="url(#burstGrad)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <text x="50" y="74" fill="#fff" font-size="13" font-weight="700">Cloud Burst Traffic Manager</text>
+    <text x="45" y="92" fill="#fde68a" font-size="10">Cloudflare Load Balancing / AWS Route 53</text>
+    <text x="45" y="106" fill="#fed7aa" font-size="10">Trigger: Local Load > 80% or Queue > 50 reqs</text>
+
+    <!-- Burst Instances Cluster -->
+    <rect x="25" y="140" width="300" height="150" rx="10" fill="#2d1704" stroke="#d97706" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="40" y="162" fill="#fef3c7" font-size="11" font-weight="700">Elastic On-Demand Burst Fleet (AWS / GCP)</text>
+    
+    <rect x="40" y="175" width="270" height="30" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+    <text x="55" y="195" fill="#fde68a" font-size="11">Cloud Burst Instance 1 (Fargate / Cloud Run)</text>
+
+    <rect x="40" y="212" width="270" height="30" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+    <text x="55" y="232" fill="#fde68a" font-size="11">Cloud Burst Instance 2 (Fargate / Cloud Run)</text>
+
+    <rect x="40" y="249" width="270" height="30" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+    <text x="55" y="269" fill="#fde68a" font-size="11">Cloud Burst Instance N (Autoscale 1..10)</text>
+
+    <!-- PgBouncer Connection Pooler Box -->
+    <rect x="25" y="310" width="300" height="100" rx="10" fill="url(#neonGrad)" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="45" y="335" fill="#fff" font-size="12" font-weight="700">Shared Cloud PgBouncer Pooler</text>
+    <text x="45" y="355" fill="#e9d5ff" font-size="10">Multiplexes 100+ burst connections into Neon</text>
+    <text x="45" y="375" fill="#e9d5ff" font-size="10">Prevents Postgres pool exhaustion on Neon</text>
+    <text x="45" y="395" fill="#d8b4fe" font-size="10" font-weight="600">Mode: Transaction Pooling · Port 5432</text>
+  </g>
+
+  <!-- DATABASE TIER (AUTHORITATIVE CLOUD PERSISTENCE) -->
+  <g transform="translate(40, 680)">
+    <rect width="1020" height="140" rx="14" fill="url(#neonGrad)" stroke="#a855f7" stroke-width="2" filter="url(#glow)"/>
+    <text x="25" y="25" fill="#e9d5ff" font-size="12" font-weight="800" letter-spacing="1">AUTHORITATIVE CLOUD DATABASE TIER (PERSISTENT STATE)</text>
+    
+    <!-- Neon Cloud Box -->
+    <rect x="30" y="38" width="550" height="85" rx="10" fill="#2e1065" stroke="#c084fc" stroke-width="1.5"/>
+    <text x="50" y="65" fill="#ffffff" font-size="15" font-weight="700">Neon Serverless PostgreSQL 18</text>
+    <text x="50" y="85" fill="#d8b4fe" font-size="11">Endpoint: ep-morning-tree-b3yub052 · Region: AWS ap-southeast-1</text>
+    <text x="50" y="103" fill="#c084fc" font-size="11">Security: TLS Encrypted (:5432) · Concurrency: btree_gist Exclusion Constraints</text>
+
+    <!-- Concurrency Centerpiece Note -->
+    <rect x="610" y="38" width="380" height="85" rx="10" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5"/>
+    <text x="630" y="62" fill="#e0e7ff" font-size="12" font-weight="700">Zero-Conflict Concurrency Centerpiece</text>
+    <text x="630" y="80" fill="#c7d2fe" font-size="10">Double-booking blocked atomically across all instances:</text>
+    <text x="630" y="95" fill="#a5b4fc" font-size="10">EXCLUDE USING gist (resource_id WITH =, tstzrange WITH &amp;&amp;)</text>
+    <text x="630" y="110" fill="#818cf8" font-size="10">Shared across local Docker instances + proposed cloud burst</text>
+  </g>
+
+  <!-- Connection Lines & Flow Arrows -->
+  <!-- Client to Nginx -->
+  <path d="M 520 190 L 520 270" stroke="#38bdf8" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="528" y="215" fill="#38bdf8" font-size="11" font-weight="600">HTTP :8081</text>
+
+  <!-- Local Backends to Database -->
+  <path d="M 115 510 L 115 680" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 320 510 L 320 680" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 525 510 L 525 680" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#arrow-green)"/>
+
+  <!-- Spillover Arrow to Cloud Bursting -->
+  <path d="M 470 280 L 735 280" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5 5" fill="none" marker-end="url(#arrow-amber)"/>
+  <text x="500" y="270" fill="#fbbf24" font-size="11" font-weight="700">Cloud Burst Spillover (>80% Capacity)</text>
+
+  <!-- Burst Fleet to PgBouncer -->
+  <path d="M 880 510 L 880 530" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 4" fill="none" marker-end="url(#arrow-amber)"/>
+  
+  <!-- PgBouncer to Neon -->
+  <path d="M 880 630 L 880 680" stroke="#c084fc" stroke-width="2" fill="none" marker-end="url(#arrow-purple)"/>
+  <text x="890" y="655" fill="#c084fc" font-size="10" font-weight="600">Multiplexed TLS (5432)</text>
+</svg>

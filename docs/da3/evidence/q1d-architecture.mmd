@@ -1,0 +1,87 @@
+graph TD
+    %% =========================================================================
+    %% SpaceSync BACSE344 DA3 - Architecture Diagram with Proposed Cloud Bursting
+    %% =========================================================================
+
+    subgraph CLIENT["Client Layer"]
+        USER["End User / Member / Admin<br/>(Browser)"]
+        BENCHMARK["ApacheBench / Automated Test<br/>(ab Concurrency = 15)"]
+    end
+
+    subgraph PROD_FRONTEND["Frontend Tier (Cloud Hosted)"]
+        VERCEL["Next.js 14 Web Application<br/><b>Vercel Edge Platform</b><br/>https://space-sync-one.vercel.app"]
+    end
+
+    subgraph LOCAL_STACK["Local Multi-Instance Scaling Cluster (Docker Compose — DA3 Implemented)"]
+        NGINX["Nginx Load Balancer (Reverse Proxy)<br/><b>spacesync-nginx-lb</b><br/>Host Port: 8081 | Container: 80<br/>Algorithm: Round-Robin + Active Retries"]
+
+        subgraph BACKENDS["Backend Cluster (Node.js 20 + Express + TypeScript)"]
+            B1["Backend Instance 1<br/><b>spacesync-backend-1</b><br/>Port: 5000 | Pool: 7"]
+            B2["Backend Instance 2<br/><b>spacesync-backend-2</b><br/>Port: 5000 | Pool: 7"]
+            B3["Backend Instance 3<br/><b>spacesync-backend-3</b><br/>Port: 5000 | Pool: 7"]
+        end
+    end
+
+    subgraph EXISTING_PROD["Production Backend (Assignment 1 Implemented)"]
+        RENDER["Render Web Service Backend<br/><b>Single-Instance Production</b><br/>https://spacesync-0uis.onrender.com"]
+    end
+
+    subgraph CLOUD_DB["Persistent Database Tier (Authoritative Cloud)"]
+        NEON["Neon Serverless PostgreSQL 18<br/><b>ep-morning-tree-b3yub052</b><br/>Port: 5432 (TLS/SSL Enforced)<br/>btree_gist Concurrency Locks"]
+    end
+
+    subgraph CLOUD_BURSTING["PROPOSED — NOT IMPLEMENTED: Elastic Cloud Bursting Extension"]
+        BURST_ROUTER["Global Traffic Manager / Cloud Burst Router<br/>(Cloudflare Load Balancing / AWS Route 53)<br/><i>Policy: Spillover when Local Load > 80%</i>"]
+        BURST_TRIGGER["Autoscaling Telemetry Monitor<br/>(Prometheus / CloudWatch / Datadog)<br/><i>Trigger: CPU > 75% | Queue > 50 | Latency > 250ms</i>"]
+        
+        subgraph BURST_INSTANCES["Elastic On-Demand Cloud Fleet (Burst Tier)"]
+            CB1["Burst Instance 1<br/>AWS ECS Fargate / Cloud Run<br/>Port: 5000 (Ephemeral)"]
+            CB2["Burst Instance 2<br/>AWS ECS Fargate / Cloud Run<br/>Port: 5000 (Ephemeral)"]
+            CBN["Burst Instance N<br/>(Autoscaled 1..10 replicas)"]
+        end
+
+        PGBOUNCER["Cloud Connection Multiplexer<br/><b>Neon PgBouncer Pooler</b><br/>Transaction Mode | Max Pool: 100"]
+    end
+
+    %% Client Interactions
+    USER -->|HTTPS / WSS| VERCEL
+    VERCEL -->|REST API / Bearer JWT| NGINX
+    BENCHMARK -->|HTTP Benchmarking| NGINX
+
+    %% Local Cluster Routing
+    NGINX -->|HTTP Round-Robin #1| B1
+    NGINX -->|HTTP Round-Robin #2| B2
+    NGINX -->|HTTP Round-Robin #3| B3
+
+    %% Database Connections (Implemented)
+    B1 -->|TCP/TLS :5432 (Max 7)| NEON
+    B2 -->|TCP/TLS :5432 (Max 7)| NEON
+    B3 -->|TCP/TLS :5432 (Max 7)| NEON
+    RENDER -->|TCP/TLS :5432| NEON
+
+    %% Cloud Bursting Routing (Proposed)
+    NGINX -.->|Spillover Traffic (>80% Capacity)| BURST_ROUTER
+    BURST_TRIGGER -.->|Trigger Metric Alert| BURST_ROUTER
+    BURST_TRIGGER -.->|Scale-Out API Signal| BURST_INSTANCES
+    BURST_ROUTER -.->|Forward Spillover HTTP| CB1
+    BURST_ROUTER -.->|Forward Spillover HTTP| CB2
+    BURST_ROUTER -.->|Forward Spillover HTTP| CBN
+
+    %% Cloud Bursting Database Flow (Proposed)
+    CB1 -.->|Multiplexed DB Connections| PGBOUNCER
+    CB2 -.->|Multiplexed DB Connections| PGBOUNCER
+    CBN -.->|Multiplexed DB Connections| PGBOUNCER
+    PGBOUNCER -.->|Shared Pool Session (Port 5432)| NEON
+
+    %% Styling & Distinction
+    classDef clientStyle fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#0f172a;
+    classDef frontendStyle fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    classDef implementedStyle fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#14532d;
+    classDef dbStyle fill:#faf5ff,stroke:#a855f7,stroke-width:2px,color:#581c87;
+    classDef burstStyle fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,stroke-dasharray: 6 6,color:#78350f;
+
+    class USER,BENCHMARK clientStyle;
+    class VERCEL frontendStyle;
+    class NGINX,B1,B2,B3,RENDER implementedStyle;
+    class NEON dbStyle;
+    class BURST_ROUTER,BURST_TRIGGER,CB1,CB2,CBN,PGBOUNCER burstStyle;
