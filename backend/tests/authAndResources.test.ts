@@ -200,6 +200,30 @@ describe('Authentication, RBAC & Resource Management', () => {
       expect(res.headers['x-served-by']).toBeDefined();
       expect(res.headers['x-backend-instance']).toBeDefined();
     });
+
+    test('GET /health (root alias) should also return ok without authentication', async () => {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ok');
+      expect(res.body.database).toBe('connected');
+    });
+
+    test('HEAD /api/health should return 200 with headers and no body', async () => {
+      const res = await request(app).head('/api/health');
+      expect(res.status).toBe(200);
+      expect(res.headers['x-served-by']).toBeDefined();
+    });
+
+    test('GET /api/health should return 503 when database is disconnected', async () => {
+      jest.spyOn(db, 'query').mockImplementationOnce(async () => {
+        throw new Error('Connection refused');
+      });
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe('error');
+      expect(res.body.database).toBe('disconnected');
+      expect(res.headers['x-served-by']).toBeDefined();
+    });
   });
 
   describe('Auth Flow', () => {

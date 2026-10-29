@@ -52,7 +52,7 @@ In the SpaceSync domain (shared rooms, laboratories, equipment, and workstation 
 ```
 
 ### Architectural Highlights
-1. **Single Entry Point on Port 8080:** Nginx listens on `http://localhost:8080` and proxies traffic to the three backend containers (`backend-1:5000`, `backend-2:5000`, `backend-3:5000`) over an isolated Docker bridge network (`spacesync-network`).
+1. **Single Entry Point on Port 8080:** Nginx listens on `http://localhost:8080` (or `${NGINX_PORT:-8080}`) and proxies traffic to the three backend containers (`backend-1:5000`, `backend-2:5000`, `backend-3:5000`) over an isolated Docker bridge network (`spacesync-network`).
 2. **Authoritative Neon Cloud Database:** All three backend instances connect to the exact same Neon PostgreSQL database using the `DATABASE_URL` environment variable.
 3. **Connection Pool Protection (`DB_POOL_MAX`):** To prevent three instances from exhausting Neon's serverless connection pool limit, each instance is configured with a sensible pool max (`DB_POOL_MAX=7`, totaling at most 21 pooled connections across the entire cluster).
 4. **No In-Memory Fallback:** The backend instances enforce `ALLOW_EMBEDDED_DB=false`, guaranteeing they never silently fall back to an in-memory mock and always use authoritative PostgreSQL.
@@ -67,7 +67,7 @@ In the SpaceSync domain (shared rooms, laboratories, equipment, and workstation 
        "status": "ok",
        "instance": "backend-1",
        "database": "connected",
-       "uptime": 12.4,
+       "uptime": 12,
        "latency": "180ms",
        "environment": "production"
      }
@@ -78,24 +78,32 @@ In the SpaceSync domain (shared rooms, laboratories, equipment, and workstation 
 
 ## 3. Environment Configuration
 
-Create a `.env` file in the root directory (or export the variable in your terminal session). **Do not commit `.env` to Git.**
+### Step 1: Create your local `.env` file
+Copy `.env.example` to `.env` in the repository root:
+```bash
+cp .env.example .env
+```
 
+### Step 2: Configure your Neon PostgreSQL Connection String
+Edit `.env` and set `DATABASE_URL` to your Neon PostgreSQL connection string:
 ```bash
 # Authoritative Cloud PostgreSQL Connection String (Neon)
 DATABASE_URL=postgresql://username:password@ep-something.us-east-2.aws.neon.tech/spacesync?sslmode=require
 
-# JWT Secret for stateless token issuance and verification
-JWT_SECRET=spacesync_da3_production_jwt_secret_key_2026_secure
+# Port configuration (8080 default, or 8081 if port 8080 has a host conflict)
+NGINX_PORT=8080
 
-# Per-instance connection pool size (3 instances * 7 = 21 connections max)
+# Connection limits & security
 DB_POOL_MAX=7
-
-# Disallow silent in-memory fallback
 ALLOW_EMBEDDED_DB=false
-
-# Allowed client origin
-CLIENT_URL=http://localhost:8080
+JWT_SECRET=spacesync_da3_production_jwt_secret_key_2026_secure
 ```
+
+> **IMPORTANT NOTE ON PORT 8080 CONFLICTS:**  
+> On Windows machines with Oracle Database Express Edition installed, `OracleXETNSListener` / Oracle XML DB listens on port 8080 by default and responds with `HTTP/1.1 401 Unauthorized (Basic realm="XDB")`.  
+> To resolve this:  
+> - Either stop the Oracle service via PowerShell: `Stop-Service OracleXETNSListener`  
+> - Or set `NGINX_PORT=8081` in your `.env` file to run Nginx on port 8081.
 
 ---
 
@@ -111,13 +119,13 @@ docker compose up --build -d
 ```bash
 docker compose ps
 ```
-**Expected Output:**
+**Expected Output (Healthy):**
 ```
 NAME                  IMAGE                COMMAND                  SERVICE     CREATED         STATUS                   PORTS
 spacesync-backend-1   space-backend-1      "docker-entrypoint.s…"   backend-1   1 minute ago    Up 1 minute (healthy)    5000/tcp
 spacesync-backend-2   space-backend-2      "docker-entrypoint.s…"   backend-2   1 minute ago    Up 1 minute (healthy)    5000/tcp
 spacesync-backend-3   space-backend-3      "docker-entrypoint.s…"   backend-3   1 minute ago    Up 1 minute (healthy)    5000/tcp
-spacesync-nginx-lb    nginx:1.27-alpine    "/docker-entrypoint.…"   nginx       1 minute ago    Up 1 minute              0.0.0.0:8080->80/tcp
+spacesync-nginx-lb    nginx:1.27-alpine    "/docker-entrypoint.…"   nginx       1 minute ago    Up 1 minute (healthy)    0.0.0.0:8080->80/tcp
 ```
 
 ### C. Inspect Logs
@@ -149,7 +157,7 @@ Run the automated demonstration script:
 ```bash
 node scripts/verify-load-balancing.js
 ```
-*(Or on Unix/macOS: `./scripts/verify-load-balancing.sh`)*
+*(Or specify custom URL/port: `node scripts/verify-load-balancing.js http://localhost:8080/api/health`)*
 
 ### Example Execution Output:
 ```text
@@ -158,37 +166,37 @@ node scripts/verify-load-balancing.js
 ========================================================================
  Target Load Balancer:  http://localhost:8080/api/health
  Total Sample Requests: 15
- Load Balancing Method: Nginx Round-Robin
+ Load Balancing Method: Nginx Round-Robin (default)
 ------------------------------------------------------------------------
 
 Sending requests sequentially through Nginx (port 8080)...
 
-Req # | Status | Nginx Upstream Handled By | Latency | Result
-------|--------|---------------------------|---------|-------
-    1 | 200    | backend-1                 | 15ms    | ✅ OK
-    2 | 200    | backend-2                 | 14ms    | ✅ OK
-    3 | 200    | backend-3                 | 16ms    | ✅ OK
-    4 | 200    | backend-1                 | 13ms    | ✅ OK
-    5 | 200    | backend-2                 | 15ms    | ✅ OK
-    6 | 200    | backend-3                 | 14ms    | ✅ OK
-    7 | 200    | backend-1                 | 13ms    | ✅ OK
-    8 | 200    | backend-2                 | 15ms    | ✅ OK
-    9 | 200    | backend-3                 | 14ms    | ✅ OK
-   10 | 200    | backend-1                 | 13ms    | ✅ OK
-   11 | 200    | backend-2                 | 14ms    | ✅ OK
-   12 | 200    | backend-3                 | 15ms    | ✅ OK
-   13 | 200    | backend-1                 | 14ms    | ✅ OK
-   14 | 200    | backend-2                 | 13ms    | ✅ OK
-   15 | 200    | backend-3                 | 14ms    | ✅ OK
+Req # | Status | Upstream Handled By       | Database    | Latency | Result
+------|--------|---------------------------|-------------|---------|-------
+    1 | 200    | backend-1                 | connected   | 15ms    | ✅ OK
+    2 | 200    | backend-2                 | connected   | 14ms    | ✅ OK
+    3 | 200    | backend-3                 | connected   | 16ms    | ✅ OK
+    4 | 200    | backend-1                 | connected   | 13ms    | ✅ OK
+    5 | 200    | backend-2                 | connected   | 15ms    | ✅ OK
+    6 | 200    | backend-3                 | connected   | 14ms    | ✅ OK
+    7 | 200    | backend-1                 | connected   | 13ms    | ✅ OK
+    8 | 200    | backend-2                 | connected   | 15ms    | ✅ OK
+    9 | 200    | backend-3                 | connected   | 14ms    | ✅ OK
+   10 | 200    | backend-1                 | connected   | 13ms    | ✅ OK
+   11 | 200    | backend-2                 | connected   | 14ms    | ✅ OK
+   12 | 200    | backend-3                 | connected   | 15ms    | ✅ OK
+   13 | 200    | backend-1                 | connected   | 14ms    | ✅ OK
+   14 | 200    | backend-2                 | connected   | 13ms    | ✅ OK
+   15 | 200    | backend-3                 | connected   | 14ms    | ✅ OK
 
 ------------------------------------------------------------------------
  Multi-Instance Distribution Breakdown
 ------------------------------------------------------------------------
 Total Requests:      15
-Successful:          15
-Failed:              0
+Successful (HTTP 200): 15
+Failed / Degraded:   0
 
-Instance Breakdown:
+Instance Traffic Distribution:
   • backend-1   :  5 requests ( 33.3%) ██████████
   • backend-2   :  5 requests ( 33.3%) ██████████
   • backend-3   :  5 requests ( 33.3%) ██████████
@@ -201,42 +209,19 @@ Instance Breakdown:
 ------------------------------------------------------------------------
  Database-backed API Verification: GET /api/resources
 ------------------------------------------------------------------------
-✅ Query through Nginx succeeded (HTTP 200) in 182ms
+✅ Query through Nginx succeeded (HTTP 200) in 22ms
    Served by: [backend-1] via [SpaceSync-Nginx-LB]
    All instances successfully query the authoritative Neon PostgreSQL database.
 ========================================================================
 ```
 
-### Manual cURL Inspection
-You can also inspect individual headers directly:
-```bash
-curl -i http://localhost:8080/api/health
-```
-Look for the response headers:
-```http
-HTTP/1.1 200 OK
-Server: nginx/1.27.4
-Content-Type: application/json; charset=utf-8
-X-Served-By: backend-1
-X-Backend-Instance: backend-1
-X-Proxy-By: SpaceSync-Nginx-LB
-```
-
 ---
 
-## 6. Files Created and Modified for DA3 Q1(a)
+## 6. Diagnosis & Remediation Record
 
-| File | Purpose |
-| :--- | :--- |
-| `backend/Dockerfile` | Multi-stage Docker build for the backend with non-root user security. |
-| `backend/.dockerignore` | Prevents local `node_modules`, `.env`, and build artifacts from leaking into images. |
-| `nginx/nginx.conf` | Nginx reverse proxy configuration defining the upstream backend pool and round-robin load balancing. |
-| `docker-compose.yml` | Multi-container specification running `backend-1`, `backend-2`, `backend-3`, and `nginx`. |
-| `backend/src/app.ts` | Added `X-Served-By` and `X-Backend-Instance` headers middleware and port 8080 CORS origin. |
-| `backend/src/config/db.ts` | Configurable connection pool sizing (`DB_POOL_MAX=7`) and strict prevention of silent fallback. |
-| `backend/src/routes/healthRoutes.ts` | Health endpoint reporting active `instance` ID. |
-| `backend/tests/authAndResources.test.ts` | Integration tests verifying instance identification headers. |
-| `scripts/verify-load-balancing.js` | Automated script demonstrating request distribution across all 3 backend instances. |
-| `scripts/verify-load-balancing.sh` | Bash script for cURL-based distribution verification. |
-| `.env.example` | Root template documenting multi-instance settings without exposing credentials. |
-| `docs/da3-setup.md` | Comprehensive assignment guide and report documentation. |
+| Issue | Root Cause | Permanent Resolution |
+| :--- | :--- | :--- |
+| **`DATABASE_URL is not set` Warning** | `docker compose` was executed from root directory where no `.env` file existed. | Configured `env_file: [./backend/.env, .env]` in `docker-compose.yml` with `DATABASE_URL=${DATABASE_URL:-}` fallback syntax. |
+| **Containers Unhealthy / Crash Loop** | Node app exited with `process.exit(1)` immediately when `DATABASE_URL` was missing, preventing Express from listening. | App now starts HTTP server and returns `503 Service Unavailable` with diagnostic JSON and instance headers. Healthcheck updated to use Node native fetch with 30s start period. |
+| **`HTTP 401 Unauthorized` on Port 8080** | Host machine had Oracle Database TNS Listener (`OracleXETNSListener` / Oracle XML DB) occupying port 8080. | Identified Oracle XML DB process (`TNSLSNR`), and added configurable `NGINX_PORT=${NGINX_PORT:-8080}` mapping to prevent host port collision. |
+| **Verification Script Reporting 0/15** | Script failed because Nginx could not bind to 8080 due to host port conflict. | Updated `verify-load-balancing.js` to report exact status codes, parse database status, provide actionable diagnostics, and support configurable ports. |

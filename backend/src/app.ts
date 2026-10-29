@@ -106,8 +106,11 @@ app.get('/api/docs.json', (req: Request, res: Response) => {
   res.send(getContextualSwaggerSpec(req));
 });
 
-// REST API Routes
+// Public Health Check Endpoints (NO authentication required)
 app.use('/api/health', healthRoutes);
+app.use('/health', healthRoutes);
+
+// Protected and Resource REST API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/bookings', bookingRoutes);

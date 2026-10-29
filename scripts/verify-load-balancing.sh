@@ -4,7 +4,8 @@
 # SpaceSync BACSE344 DA3 - Q1(a) Load Balancing Verification (Bash / cURL)
 # ==============================================================================
 
-TARGET_URL="${1:-http://localhost:8080/api/health}"
+TARGET_PORT="${NGINX_PORT:-8080}"
+TARGET_URL="${1:-http://localhost:${TARGET_PORT}/api/health}"
 TOTAL_REQUESTS="${2:-15}"
 
 echo "========================================================================"
