@@ -1,0 +1,15 @@
+Metric,Before Resilience Changes (Baseline),After Resilience Changes (Resilient),Difference,Relative Change
+Nginx Resilience Setting,proxy_next_upstream off,proxy_next_upstream active failover,--,--
+Interrupted Container,spacesync-backend-2,spacesync-backend-2,--,--
+Interruption Trigger Request,#180,#180,--,--
+Total Requests,600,600,0,0.0%
+Successful Requests (200 OK),585,600,+15,+2.56%
+Failed Requests,15,0,-15,-100.0%
+HTTP 504 Gateway Timeout,15,0,-15,-100.0%
+Success Rate (%),97.50%,100.00%,+2.50%,+2.56%
+Total Duration (seconds),14.246,7.863,-6.383,-44.81%
+Requests Per Second (RPS),42.12,76.31,+34.19,+81.17%
+Average Response Time (ms),224.45,128.93,-95.52,-42.56%
+backend-1 Requests Handled,261 (44.6%),269 (44.8%),+8,+3.07%
+backend-2 Requests Handled (before stop),61 (10.4%),59 (9.8%),-2,-3.28%
+backend-3 Requests Handled,263 (45.0%),272 (45.3%),+9,+3.42%

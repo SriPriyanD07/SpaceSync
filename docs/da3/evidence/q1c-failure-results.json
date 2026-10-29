@@ -1,0 +1,58 @@
+{
+  "assignment": "BACSE344 Cloud Infrastructure and Architecture - Digital Assignment 3",
+  "task": "Question 1(c) - Failure Handling During Sustained Load",
+  "timestamp": "2026-10-29T14:42:25Z",
+  "target_endpoint": "GET /api/resources",
+  "total_requests_per_run": 600,
+  "concurrency_level": 10,
+  "interrupted_container": "spacesync-backend-2",
+  "interruption_trigger_request": 180,
+  "baseline_experiment": {
+    "nginx_configuration": "proxy_next_upstream off; standard upstream without aggressive failover",
+    "interruption_timestamp": "2026-10-29T14:41:20.079Z",
+    "total_duration_seconds": 14.246,
+    "requests_per_second": 42.12,
+    "average_latency_ms": 224.45,
+    "total_requests": 600,
+    "successful_requests": 585,
+    "failed_requests": 15,
+    "success_rate_percent": 97.50,
+    "status_distribution": {
+      "200": 585,
+      "504": 15
+    },
+    "instance_distribution": {
+      "backend-1": 261,
+      "backend-2": 61,
+      "backend-3": 263
+    },
+    "failure_analysis": "When spacesync-backend-2 was stopped mid-run without upstream retry directives (proxy_next_upstream off), in-flight and queued connections targeted at backend-2 stalled until the proxy connect timeout expired, returning HTTP 504 Gateway Timeout. 15 requests were dropped."
+  },
+  "resilience_experiment": {
+    "nginx_configuration": "proxy_next_upstream error timeout http_502 http_503 http_504; max_fails=1 fail_timeout=5s; proxy_connect_timeout 1s; proxy_next_upstream_tries 3; proxy_next_upstream_timeout 5s;",
+    "interruption_timestamp": "2026-10-29T14:42:16.946Z",
+    "total_duration_seconds": 7.863,
+    "requests_per_second": 76.31,
+    "average_latency_ms": 128.93,
+    "total_requests": 600,
+    "successful_requests": 600,
+    "failed_requests": 0,
+    "success_rate_percent": 100.00,
+    "status_distribution": {
+      "200": 600
+    },
+    "instance_distribution": {
+      "backend-1": 269,
+      "backend-2": 59,
+      "backend-3": 272
+    },
+    "resilience_analysis": "With passive failure detection and proxy retry directives enabled, Nginx immediately detected the dead connection to backend-2 in <= 1s, transparently retried the request on backend-1 and backend-3, and evicted backend-2 for 5s. 100% of requests succeeded with 0 dropped requests."
+  },
+  "comparison": {
+    "failed_requests_reduction": 15,
+    "failed_requests_after": 0,
+    "success_rate_improvement_percent": 2.50,
+    "throughput_gain_percent": 81.17,
+    "average_latency_reduction_percent": 42.56
+  }
+}

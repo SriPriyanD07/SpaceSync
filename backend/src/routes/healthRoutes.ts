@@ -3,22 +3,33 @@ import { query, isUsingEmbeddedStore } from '../config/db';
 
 const router = Router();
 
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const isCloud = Boolean(process.env.RENDER || (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')));
-    if (isCloud) {
-      process.env.NODE_ENV = 'production';
-    }
+const handleHealth = async (req: Request, res: Response) => {
+  const instanceId = process.env.INSTANCE_ID || process.env.HOSTNAME || 'backend-primary';
 
+  // Multi-instance observability and anti-caching headers (publicly accessible, no auth required)
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('X-Served-By', instanceId);
+  res.setHeader('X-Backend-Instance', instanceId);
+
+  if (req.method === 'HEAD') {
+    try {
+      await query('SELECT 1');
+      return res.status(200).end();
+    } catch {
+      return res.status(503).end();
+    }
+  }
+
+  try {
     const start = Date.now();
-    const dbRes = await query('SELECT 1, current_database() as db_name;');
+    await query('SELECT 1');
     const latencyMs = Date.now() - start;
 
     return res.status(200).json({
       status: 'ok',
+      instance: instanceId,
       database: isUsingEmbeddedStore ? 'embedded' : 'connected',
-      databaseName: isUsingEmbeddedStore ? 'embedded' : dbRes.rows[0]?.db_name,
-      uptime: process.uptime(),
+      uptime: Math.floor(process.uptime()),
       latency: `${latencyMs}ms`,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'production',
@@ -26,12 +37,19 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(503).json({
       status: 'error',
+      instance: instanceId,
       database: 'disconnected',
       message: 'Database connection failed',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'production',
     });
   }
-});
+};
+
+// Mount handlers for GET and HEAD on both '/' and '/health'
+router.get('/', handleHealth);
+router.get('/health', handleHealth);
+router.head('/', handleHealth);
+router.head('/health', handleHealth);
 
 export default router;

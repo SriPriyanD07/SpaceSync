@@ -10,7 +10,8 @@
     "migrate": "ts-node src/db/migrate.ts",
     "seed": "ts-node src/db/seed.ts",
     "test": "jest --detectOpenHandles --forceExit --runInBand",
-    "test:coverage": "jest --detectOpenHandles --forceExit --runInBand --coverage"
+    "test:coverage": "jest --detectOpenHandles --forceExit --runInBand --coverage",
+    "verify:lb": "node ../scripts/verify-load-balancing.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,7 +21,9 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "otplib": "^12.0.1",
     "pg": "^8.12.0",
+    "qrcode": "^1.5.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^3.23.8"
@@ -34,6 +37,7 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.14.9",
     "@types/pg": "^8.11.6",
+    "@types/qrcode": "^1.5.6",
     "@types/supertest": "^6.0.2",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",

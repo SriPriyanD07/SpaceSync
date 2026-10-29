@@ -1,0 +1,60 @@
+{
+  "q2a_demonstration": "SpaceSync Salted Password Hashing & Secret Redaction",
+  "hash_algorithm": "bcrypt",
+  "work_factor": 12,
+  "salt_format": "$2a$12$ or $2b$12$",
+  "sample_database_record_redacted": {
+    "id": "e4b1c3d0-7a8f-4d92-bf3e-90f23bca0123",
+    "name": "Alice Researcher",
+    "email": "alice@spacesync.io",
+    "password_hash": "$2b$12$eX4mP1eSa1tUn1qu3H4shVa1u3W1thZ3r0P1a1nt3xt...",
+    "role": "member",
+    "mfa_enabled": true,
+    "mfa_secret": "2f8a1c90e2b4...:7d9a0f1e...:4a5b6c...",
+    "created_at": "2026-10-29T19:30:00.000Z"
+  },
+  "api_responses": {
+    "register_response": {
+      "message": "Registration successful",
+      "user": {
+        "id": "e4b1c3d0-7a8f-4d92-bf3e-90f23bca0123",
+        "name": "Alice Researcher",
+        "email": "alice@spacesync.io",
+        "role": "member",
+        "mfa_enabled": false,
+        "created_at": "2026-10-29T19:30:00.000Z"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    },
+    "login_response_non_mfa": {
+      "message": "Login successful",
+      "mfaRequired": false,
+      "user": {
+        "id": "e4b1c3d0-7a8f-4d92-bf3e-90f23bca0123",
+        "name": "Alice Researcher",
+        "email": "alice@spacesync.io",
+        "role": "member",
+        "mfa_enabled": false,
+        "created_at": "2026-10-29T19:30:00.000Z"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    },
+    "get_me_response": {
+      "user": {
+        "id": "e4b1c3d0-7a8f-4d92-bf3e-90f23bca0123",
+        "name": "Alice Researcher",
+        "email": "alice@spacesync.io",
+        "role": "member",
+        "mfa_enabled": true,
+        "created_at": "2026-10-29T19:30:00.000Z"
+      }
+    }
+  },
+  "security_guarantees": [
+    "Zero plaintext passwords persisted in PostgreSQL",
+    "Zero passwords, password hashes, or encryption keys in application logs",
+    "password_hash and mfa_secret strictly excluded from REST API JSON serializations",
+    "AES-256-GCM encryption with authenticated tags for all 2FA TOTP secrets at rest",
+    "Role escalation during self-registration blocked with HTTP 403 Forbidden"
+  ]
+}

@@ -8,6 +8,8 @@ export interface User {
   email: string;
   password_hash: string;
   role: UserRole;
+  mfa_enabled?: boolean;
+  mfa_secret?: string;
   created_at: string;
 }
 

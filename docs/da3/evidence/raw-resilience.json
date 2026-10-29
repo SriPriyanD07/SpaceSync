@@ -1,0 +1,23 @@
+{
+  "test_phase": "resilience",
+  "target_url": "http://localhost:8081/api/resources",
+  "total_requests": 600,
+  "concurrency": 10,
+  "stopped_container": "spacesync-backend-2",
+  "interruption_request_index": 180,
+  "interruption_timestamp": "2026-10-29T14:42:16.946Z",
+  "total_duration_seconds": 7.863,
+  "requests_per_second": 76.31,
+  "average_latency_ms": 128.93,
+  "successful_requests": 600,
+  "failed_requests": 0,
+  "success_rate_percent": 100,
+  "status_distribution": {
+    "200": 600
+  },
+  "instance_distribution": {
+    "backend-1": 269,
+    "backend-2": 59,
+    "backend-3": 272
+  }
+}

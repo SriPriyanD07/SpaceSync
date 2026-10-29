@@ -1,0 +1,14 @@
+Metric,One Backend Instance,Three Backend Instances,Difference,Change (%)
+Target URL,http://backend-1:5000/api/resources,http://nginx:80/api/resources,--,--
+Benchmark Tool,ApacheBench 2.3,ApacheBench 2.3,--,--
+Concurrency Level,15,15,0,0.0%
+Total Requests,1000,1000,0,0.0%
+Successful Requests,1000,1000,0,0.0%
+Failed Requests,0,0,0,0.0%
+Total Duration (seconds),12.086,5.821,-6.265,-51.84%
+Requests Per Second (RPS),82.74,171.79,+89.05,+107.63%
+Average Response Time (ms),181.289,87.315,-93.974,-51.84%
+Median Latency (ms),172,81,-91,-52.91%
+95th Percentile Latency (ms),200,90,-110,-55.00%
+99th Percentile Latency (ms),444,346,-98,-22.07%
+Transfer Rate (KB/s),253.07,534.50,+281.43,+111.21%
