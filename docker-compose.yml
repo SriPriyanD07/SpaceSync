@@ -18,7 +18,8 @@ services:
       - NODE_ENV=production
       - INSTANCE_ID=backend-1
       - DATABASE_URL=${DATABASE_URL:-}
-      - JWT_SECRET=${JWT_SECRET:-spacesync_production_jwt_secret_key_change_in_prod_2026}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - MFA_ENCRYPTION_KEY=${MFA_ENCRYPTION_KEY:-}
       - DB_POOL_MAX=${DB_POOL_MAX:-7}
       - ALLOW_EMBEDDED_DB=false
       - CLIENT_URL=${CLIENT_URL:-http://localhost:8080}
@@ -52,7 +53,8 @@ services:
       - NODE_ENV=production
       - INSTANCE_ID=backend-2
       - DATABASE_URL=${DATABASE_URL:-}
-      - JWT_SECRET=${JWT_SECRET:-spacesync_production_jwt_secret_key_change_in_prod_2026}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - MFA_ENCRYPTION_KEY=${MFA_ENCRYPTION_KEY:-}
       - DB_POOL_MAX=${DB_POOL_MAX:-7}
       - ALLOW_EMBEDDED_DB=false
       - CLIENT_URL=${CLIENT_URL:-http://localhost:8080}
@@ -86,7 +88,8 @@ services:
       - NODE_ENV=production
       - INSTANCE_ID=backend-3
       - DATABASE_URL=${DATABASE_URL:-}
-      - JWT_SECRET=${JWT_SECRET:-spacesync_production_jwt_secret_key_change_in_prod_2026}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - MFA_ENCRYPTION_KEY=${MFA_ENCRYPTION_KEY:-}
       - DB_POOL_MAX=${DB_POOL_MAX:-7}
       - ALLOW_EMBEDDED_DB=false
       - CLIENT_URL=${CLIENT_URL:-http://localhost:8080}

@@ -6,9 +6,9 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'spacesync_development_jwt_secret_key_2026_secure';
 
 describe('Double-Booking Prevention & Concurrency Centerpiece', () => {
-  const adminUser = { id: '00000000-0000-0000-0000-000000000001', name: 'Admin', email: 'admin@spacesync.io', role: 'admin' as const };
-  const member1 = { id: '00000000-0000-0000-0000-000000000002', name: 'Alex Johnson', email: 'member1@spacesync.io', role: 'member' as const };
-  const member2 = { id: '00000000-0000-0000-0000-000000000003', name: 'Sarah Chen', email: 'member2@spacesync.io', role: 'member' as const };
+  const adminUser = { id: '00000000-0000-0000-0000-000000000001', name: 'Admin', email: 'admin@spacesync.io', role: 'admin' as const, purpose: 'access_token' as const };
+  const member1 = { id: '00000000-0000-0000-0000-000000000002', name: 'Alex Johnson', email: 'member1@spacesync.io', role: 'member' as const, purpose: 'access_token' as const };
+  const member2 = { id: '00000000-0000-0000-0000-000000000003', name: 'Sarah Chen', email: 'member2@spacesync.io', role: 'member' as const, purpose: 'access_token' as const };
 
   const member1Token = jwt.sign(member1, JWT_SECRET, { expiresIn: '1h' });
   const member2Token = jwt.sign(member2, JWT_SECRET, { expiresIn: '1h' });

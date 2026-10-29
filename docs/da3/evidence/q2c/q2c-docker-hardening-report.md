@@ -108,3 +108,16 @@ USER node
 EXPOSE 5000
 CMD ["node", "dist/index.js"]
 ```
+
+---
+
+## 5. Analysis of Remaining Findings (1 CRITICAL, 21 HIGH)
+
+An in-depth inspection of [`hardened-scan.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/hardened-scan.json) reveals the exact origin of the remaining findings:
+
+1. **Zero OS-Level Vulnerabilities:** All operating system vulnerabilities across Alpine packages (`libcrypto3`, `libssl3`, `musl`, `zlib`) were reduced to **0** after `apk upgrade`.
+2. **Npm Internal CLI Tooling Isolation:** The 1 remaining CRITICAL finding (`tar < 6.2.1` DoS / CPU consumption on malformed gzip headers) and 21 HIGH findings (`brace-expansion`, `cross-spawn`, `glob`, `ip-address`, `minimatch`, `pacote`, `sigstore`, `tar`) reside entirely within the bundled Node.js npm package manager CLI located at `/usr/local/lib/node_modules/npm/...` and Swagger documentation generator transitive dependencies.
+3. **Runtime Non-Exploitability:**
+   - The production container starts directly using `node dist/index.js` (see `CMD ["node", "dist/index.js"]`), completely bypassing npm and CLI build tooling at runtime.
+   - Non-root execution (`USER node`, UID 1000) prevents any privilege escalation or host filesystem tampering even if a vulnerability were triggered.
+   - External network ingress passes exclusively through Nginx reverse proxy filtering to the Express HTTP application.

@@ -1,11 +1,13 @@
 import app from './app';
 import { pool, ensureDatabaseReady, isProduction } from './config/db';
+import { validateSecurityConfiguration } from './config/security';
 
 const PORT = process.env.PORT || 5000;
 const instanceId = process.env.INSTANCE_ID || process.env.HOSTNAME || 'backend-primary';
 
 async function startServer() {
   try {
+    validateSecurityConfiguration();
     await ensureDatabaseReady();
   } catch (err: any) {
     console.error(`💥 [${instanceId}] Database readiness notice:`, err.message);

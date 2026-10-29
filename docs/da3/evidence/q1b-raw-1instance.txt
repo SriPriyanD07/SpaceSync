@@ -1,0 +1,53 @@
+This is ApacheBench, Version 2.3 <$Revision: 1934973 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking backend-1 (be patient)
+Completed 100 requests
+Completed 200 requests
+Completed 300 requests
+Completed 400 requests
+Completed 500 requests
+Completed 600 requests
+Completed 700 requests
+Completed 800 requests
+Completed 900 requests
+Completed 1000 requests
+Finished 1000 requests
+
+
+Server Software:        
+Server Hostname:        backend-1
+Server Port:            5000
+
+Document Path:          /api/resources
+Document Length:        2451 bytes
+
+Concurrency Level:      15
+Time taken for tests:   12.508 seconds
+Complete requests:      1000
+Failed requests:        0
+Total transferred:      3132000 bytes
+HTML transferred:       2451000 bytes
+Requests per second:    79.95 [#/sec] (mean)
+Time per request:       187.620 [ms] (mean)
+Time per request:       12.508 [ms] (mean, across all concurrent requests)
+Transfer rate:          244.53 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.4      0       5
+Processing:   100  185  42.4    177     535
+Waiting:       99  185  42.3    176     534
+Total:        100  185  42.6    177     537
+
+Percentage of the requests served within a certain time (ms)
+  50%    177
+  66%    182
+  75%    186
+  80%    189
+  90%    198
+  95%    221
+  98%    303
+  99%    471
+ 100%    537 (longest request)

@@ -67,25 +67,33 @@ SpaceSync enforces strict Principle of Least Privilege access controls across al
 
 ## 3. Automated Test Suite Results
 
-Test execution output from `backend/tests/mfaAndRbac.test.ts`:
+Test execution output from `backend/tests/mfaAndRbac.test.ts` (18 specifications across TOTP MFA, Challenge Token Isolation, and RBAC Enforcement):
 
 ```text
 PASS tests/mfaAndRbac.test.ts
   Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite
     TOTP Multi-Factor Authentication (RFC 6238)
-      √ POST /api/auth/mfa/setup generates QR code Data URL and base32 secret (246 ms)
-      √ POST /api/auth/mfa/enable rejects invalid TOTP token (401 Unauthorized) (16 ms)
-      √ POST /api/auth/mfa/enable activates MFA when valid TOTP code is provided (12 ms)
-      √ POST /api/auth/login requires 2FA challenge for MFA-enabled accounts (125 ms)
-      √ POST /api/auth/mfa/verify exchanges valid MFA challenge token & TOTP code for full JWT (12 ms)
-      √ POST /api/auth/mfa/disable requires password confirmation (171 ms)
+      √ POST /api/auth/mfa/setup generates QR code Data URL and base32 secret (1359 ms)
+      √ POST /api/auth/mfa/enable rejects invalid TOTP token (401 Unauthorized) (80 ms)
+      √ POST /api/auth/mfa/enable activates MFA when valid TOTP code is provided (68 ms)
+      √ POST /api/auth/login requires 2FA challenge for MFA-enabled accounts (585 ms)
+      √ POST /api/auth/mfa/verify exchanges valid MFA challenge token & TOTP code for full JWT (53 ms)
+      √ POST /api/auth/mfa/disable requires password confirmation (784 ms)
+    MFA Challenge Token Isolation & Purpose Integrity (Phase 2)
+      √ allows valid ordinary access token to access authorized endpoint (44 ms)
+      √ strictly rejects MFA challenge token when calling ordinary protected endpoints (401 Unauthorized) (92 ms)
+      √ strictly rejects MFA challenge token when calling admin-only endpoints (401 Unauthorized) (54 ms)
+      √ rejects expired MFA challenge tokens (401 Unauthorized) (51 ms)
+      √ rejects challenge token with wrong purpose or missing mfaRequired claim (401 Unauthorized) (52 ms)
+      √ rejects ordinary access token passed as mfaToken to /api/auth/mfa/verify (401 Unauthorized) (46 ms)
+      √ rejects invalid TOTP code and does NOT issue a session token (52 ms)
     Role-Based Access Control (RBAC) Enforcement
-      √ rejects unauthenticated requests to protected endpoints (401 Unauthorized) (23 ms)
-      √ blocks members from creating, updating, or deleting resources (403 Forbidden) (74 ms)
-      √ prevents member from accessing admin statistics KPI endpoint (403 Forbidden) (44 ms)
-      √ allows admin to access admin statistics KPI endpoint (200 OK) (46 ms)
-      √ prevents Member A from viewing or cancelling Member B booking (Cross-User Isolation) (45 ms)
+      √ rejects unauthenticated requests to protected endpoints (401 Unauthorized) (130 ms)
+      √ blocks members from creating, updating, or deleting resources (403 Forbidden) (143 ms)
+      √ prevents member from accessing admin statistics KPI endpoint (403 Forbidden) (38 ms)
+      √ allows admin to access admin statistics KPI endpoint (200 OK) (37 ms)
+      √ prevents Member A from viewing or cancelling Member B booking (Cross-User Isolation) (41 ms)
 
 Test Suites: 1 passed, 1 total
-Tests:       11 passed, 11 total
+Tests:       18 passed, 18 total
 ```

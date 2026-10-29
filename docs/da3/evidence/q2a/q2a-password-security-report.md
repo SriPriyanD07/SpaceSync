@@ -62,21 +62,29 @@ const result = await query(
 
 ## 4. Automated Verification Results
 
-All automated test specifications passed successfully in `backend/tests/passwordSecurity.test.ts`:
+All 12 automated test specifications passed successfully in `backend/tests/passwordSecurity.test.ts`:
 
 ```text
 PASS tests/passwordSecurity.test.ts
   Q2(a) Password Security & Storage Architecture
     Cryptographic Salt & Hash Properties
-      √ generates unique random salts for identical passwords (923 ms)
-      √ rejects authentication with incorrect password (465 ms)
+      √ generates unique random salts for identical passwords (221 ms)
+      √ rejects authentication with incorrect password (108 ms)
     Zero Plaintext Exposure in Registration & Responses
-      √ POST /api/auth/register redacts password_hash and sensitive secrets (312 ms)
-      √ POST /api/auth/login redacts sensitive fields from response (522 ms)
-      √ GET /api/auth/me strictly omits password_hash and secrets (45 ms)
+      √ POST /api/auth/register redacts password_hash and sensitive secrets (102 ms)
+      √ POST /api/auth/login redacts sensitive fields from response (179 ms)
+      √ GET /api/auth/me strictly omits password_hash and secrets (50 ms)
     Privilege Escalation Prevention
-      √ blocks self-registration with admin role (403 Forbidden) (47 ms)
+      √ blocks self-registration with admin role (403 Forbidden) (65 ms)
     AES-256-GCM Encryption for Secrets at Rest
-      √ correctly encrypts and decrypts secrets with integrity tag validation (6 ms)
-      √ rejects tampered ciphertext with authentication error (12 ms)
+      √ correctly encrypts and decrypts secrets with integrity tag validation (8 ms)
+      √ rejects tampered ciphertext with authentication error (8 ms)
+    Unsafe Secret Fallback Remediation (Phase 3)
+      √ fails safely in production mode when JWT_SECRET is missing (51 ms)
+      √ fails safely in production mode when MFA_ENCRYPTION_KEY is missing (8 ms)
+      √ rejects weak or placeholder secrets in production mode (7 ms)
+      √ allows valid separate keys in production without fallbacks (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       12 passed, 12 total
 ```

@@ -7,8 +7,8 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'spacesync_development_jwt_secret_key_2026_secure';
 
 describe('Authentication, RBAC & Resource Management', () => {
-  const adminUser = { id: 'u-admin-1', name: 'Admin', email: 'admin@spacesync.io', role: 'admin' as const };
-  const memberUser = { id: 'u-member-1', name: 'Member', email: 'member1@spacesync.io', role: 'member' as const };
+  const adminUser = { id: 'u-admin-1', name: 'Admin', email: 'admin@spacesync.io', role: 'admin' as const, purpose: 'access_token' as const };
+  const memberUser = { id: 'u-member-1', name: 'Member', email: 'member1@spacesync.io', role: 'member' as const, purpose: 'access_token' as const };
 
   const adminToken = jwt.sign(adminUser, JWT_SECRET, { expiresIn: '1h' });
   const memberToken = jwt.sign(memberUser, JWT_SECRET, { expiresIn: '1h' });

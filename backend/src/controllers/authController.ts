@@ -19,11 +19,11 @@ import {
 } from '../utils/errors';
 import { AuthenticatedRequest, User, UserRole } from '../types';
 import { encryptMfaSecret, decryptMfaSecret } from '../utils/crypto';
+import { getJwtSecret } from '../config/security';
 
 // Configure TOTP window (1 step +/- 30s tolerance for clock drift)
 authenticator.options = { window: 1 };
 
-const JWT_SECRET = process.env.JWT_SECRET || 'spacesync_development_jwt_secret_key_2026_secure';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const BCRYPT_ROUNDS = process.env.NODE_ENV === 'test' ? 10 : 12;
 
@@ -59,10 +59,10 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 
     const user = result.rows[0];
 
-    // Generate JWT token
+    // Generate JWT access token with explicit purpose claim
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role },
-      JWT_SECRET,
+      { id: user.id, name: user.name, email: user.email, role: user.role, purpose: 'access_token' },
+      getJwtSecret(),
       { expiresIn: (JWT_EXPIRES_IN || '7d') as any }
     );
 
@@ -104,9 +104,10 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     // Check if user has TOTP Multi-Factor Authentication enabled
     if (user.mfa_enabled) {
       // Issue short-lived challenge token for 2FA step (expires in 5 minutes)
+      // Carries explicit purpose 'mfa_challenge', rejected by ordinary APIs
       const mfaToken = jwt.sign(
-        { id: user.id, email: user.email, mfaRequired: true },
-        JWT_SECRET,
+        { id: user.id, email: user.email, purpose: 'mfa_challenge', mfaRequired: true },
+        getJwtSecret(),
         { expiresIn: '5m' }
       );
 
@@ -117,10 +118,10 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       });
     }
 
-    // Generate full session JWT token for non-MFA accounts
+    // Generate full session JWT token for non-MFA accounts with explicit purpose claim
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role },
-      JWT_SECRET,
+      { id: user.id, name: user.name, email: user.email, role: user.role, purpose: 'access_token' },
+      getJwtSecret(),
       { expiresIn: (JWT_EXPIRES_IN || '7d') as any }
     );
 
@@ -149,19 +150,25 @@ export async function verifyMfa(req: Request, res: Response, next: NextFunction)
   try {
     const { mfaToken, totpCode } = mfaVerifySchema.parse(req.body);
 
-    // Verify short-lived MFA challenge token
+    // Verify short-lived MFA challenge token signature and expiry
     let decoded: any;
     try {
-      decoded = jwt.verify(mfaToken, JWT_SECRET);
-    } catch {
-      throw new UnauthorizedError('MFA session token is invalid or expired. Please sign in again.');
+      decoded = jwt.verify(mfaToken, getJwtSecret());
+    } catch (err: any) {
+      if (err.name === 'TokenExpiredError') {
+        throw new UnauthorizedError('MFA session token has expired. Please sign in again.');
+      }
+      throw new UnauthorizedError('Invalid or malformed MFA challenge token.');
     }
 
-    if (!decoded.mfaRequired || !decoded.id) {
-      throw new UnauthorizedError('Invalid MFA session challenge.');
+    // Strict validation: Reject ordinary access tokens or malformed challenge tokens
+    if (decoded.purpose !== 'mfa_challenge' || !decoded.mfaRequired || !decoded.id) {
+      throw new UnauthorizedError(
+        'Invalid token purpose: an MFA challenge token is required (ordinary access tokens are not permitted)'
+      );
     }
 
-    // Retrieve user and encrypted TOTP secret
+    // Retrieve user and encrypted TOTP secret from authoritative database
     const result = await query('SELECT * FROM users WHERE id = $1', [decoded.id]);
     if (result.rows.length === 0) {
       throw new UnauthorizedError('User not found');
@@ -175,7 +182,7 @@ export async function verifyMfa(req: Request, res: Response, next: NextFunction)
     // Decrypt MFA secret from rest storage
     const plaintextSecret = decryptMfaSecret(user.mfa_secret);
 
-    // Verify TOTP code
+    // Verify TOTP code against decrypted secret
     const isValid = authenticator.verify({
       token: totpCode,
       secret: plaintextSecret,
@@ -185,10 +192,10 @@ export async function verifyMfa(req: Request, res: Response, next: NextFunction)
       throw new UnauthorizedError('Invalid TOTP code. Please check your authenticator application.');
     }
 
-    // Issue full session JWT token
+    // Issue full session JWT access token with role derived strictly from authoritative database
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role },
-      JWT_SECRET,
+      { id: user.id, name: user.name, email: user.email, role: user.role, purpose: 'access_token' },
+      getJwtSecret(),
       { expiresIn: (JWT_EXPIRES_IN || '7d') as any }
     );
 

@@ -37,12 +37,14 @@ The SpaceSync security architecture directly addresses the two primary adversari
 
 ## 2. Regulatory Alignment: General Data Protection Regulation (GDPR)
 
-SpaceSync processes personal data (PII) including user full names, email addresses, timestamps of room occupancy, purpose of room bookings, and client connection IP addresses. This data is subject to the provisions of the European Union General Data Protection Regulation (GDPR).
+SpaceSync processes personal data (PII) including user full names, email addresses, timestamps of room occupancy, purpose of room bookings, and client connection IP addresses. When serving European Union data subjects or operating within EU jurisdictions (pursuant to GDPR Article 3 territorial scope), the processing of this personal data is governed by the General Data Protection Regulation (GDPR). 
+
+The technical architecture implements security-by-design controls directly aligned with GDPR Articles 5(1)(f) and 32. Note that comprehensive GDPR compliance is an ongoing operational commitment that additionally encompasses data protection agreements (DPAs), records of processing activities (ROPA), consent management, and data subject access request (DSAR) procedures.
 
 ### A. Article 5(1)(f) — Principle of Integrity and Confidentiality
 > *"Personal data shall be processed in a manner that ensures appropriate security of the personal data, including protection against unauthorised or unlawful processing and against accidental loss, destruction or damage, using appropriate technical or organisational measures."*
 
-**SpaceSync Technical Compliance:**
+**SpaceSync Technical Alignment:**
 1. **Confidentiality:**
    - User passwords are never stored or logged in plaintext. They are protected using bcrypt ($2b$ work factor 12).
    - Sensitive two-factor authentication secrets are encrypted using authenticated AES-256-GCM prior to storage.
@@ -56,7 +58,7 @@ SpaceSync processes personal data (PII) including user full names, email address
 ### B. Article 32 — Security of Processing
 > *"Taking into account the state of the art, the costs of implementation and the nature, scope, context and purposes of processing as well as the risk of varying likelihood and severity for the rights and freedoms of natural persons, the controller and the processor shall implement appropriate technical and organisational measures to ensure a level of security appropriate to the risk..."*
 
-SpaceSync implements the four core pillars required by Article 32:
+SpaceSync implements the four core technical pillars established by Article 32:
 
 1. **Pseudonymisation and Encryption of Personal Data (Art. 32(1)(a)):**
    - In-transit encryption: All database client traffic is encrypted via TLS (`sslmode=require`).
@@ -73,4 +75,4 @@ SpaceSync implements the four core pillars required by Article 32:
 
 4. **Regular Testing, Assessing, and Evaluating Security Effectiveness (Art. 32(1)(d)):**
    - Automated container image vulnerability scanning via Aqua Security Trivy (v0.76.1) before deployment.
-   - Automated Jest unit and integration test suites validating password security, MFA challenge logic, and RBAC isolation on every build (`40 passing test specifications`).
+   - Automated Jest unit and integration test suites validating password security, MFA challenge logic, and RBAC isolation on every build (`51 passing test specifications across 4 suites`).

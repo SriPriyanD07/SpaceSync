@@ -127,6 +127,7 @@ describe('Q2(a) Password Security & Storage Architecture', () => {
         name: 'Profile User',
         email: 'profile@spacesync.io',
         role: 'member' as const,
+        purpose: 'access_token' as const,
       };
       const token = jwt.sign(userPayload, JWT_SECRET);
 
@@ -200,6 +201,53 @@ describe('Q2(a) Password Security & Storage Architecture', () => {
       const tamperedPayload = `${parts[0]}:${parts[1]}:${tamperedCipher}`;
 
       expect(() => decryptMfaSecret(tamperedPayload)).toThrow();
+    });
+  });
+
+  describe('Unsafe Secret Fallback Remediation (Phase 3)', () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+      process.env.NODE_ENV = 'test';
+      process.env.JWT_SECRET = 'spacesync_test_suite_jwt_signing_secret_key_2026_safe';
+      process.env.MFA_ENCRYPTION_KEY = 'spacesync_test_suite_mfa_encryption_key_2026_safe';
+    });
+
+    it('fails safely in production mode when JWT_SECRET is missing', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.JWT_SECRET;
+      const { getJwtSecret } = require('../src/config/security');
+
+      expect(() => getJwtSecret()).toThrow(/SECURITY VIOLATION.*JWT_SECRET/i);
+    });
+
+    it('fails safely in production mode when MFA_ENCRYPTION_KEY is missing', () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.MFA_ENCRYPTION_KEY;
+      const { getMfaEncryptionKey } = require('../src/config/security');
+
+      expect(() => getMfaEncryptionKey()).toThrow(/SECURITY VIOLATION.*MFA_ENCRYPTION_KEY/i);
+    });
+
+    it('rejects weak or placeholder secrets in production mode', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'short_weak_secret';
+      const { getJwtSecret } = require('../src/config/security');
+
+      expect(() => getJwtSecret()).toThrow(/at least 32 characters/i);
+    });
+
+    it('allows valid separate keys in production without fallbacks', () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'a_very_strong_production_jwt_signing_secret_key_12345';
+      process.env.MFA_ENCRYPTION_KEY = 'a_very_strong_production_mfa_encryption_key_67890';
+      const { getJwtSecret, getMfaEncryptionKey } = require('../src/config/security');
+
+      expect(getJwtSecret()).toBe('a_very_strong_production_jwt_signing_secret_key_12345');
+      const mfaBuffer = getMfaEncryptionKey();
+      expect(Buffer.isBuffer(mfaBuffer)).toBe(true);
+      expect(mfaBuffer.length).toBe(32);
     });
   });
 });

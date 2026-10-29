@@ -2,8 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, AuthUser, UserRole } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'spacesync_development_jwt_secret_key_2026_secure';
+import { getJwtSecret } from '../config/security';
 
 export function authenticateToken(
   req: AuthenticatedRequest,
@@ -23,17 +22,36 @@ export function authenticateToken(
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+    const secret = getJwtSecret();
+    const decoded = jwt.verify(token, secret) as any;
+
+    // Strict Token Purpose Enforcement: Challenge tokens cannot access ordinary protected endpoints
+    if (decoded.purpose !== 'access_token' || decoded.mfaRequired) {
+      return next(
+        new UnauthorizedError(
+          'Invalid authentication token: access token required (temporary MFA challenge tokens are not permitted)'
+        )
+      );
+    }
+
+    if (!decoded.id || !decoded.role) {
+      return next(new UnauthorizedError('Malformed authentication token: missing required identity claims'));
+    }
+
     req.user = {
       id: decoded.id,
       name: decoded.name,
       email: decoded.email,
       role: decoded.role,
+      purpose: decoded.purpose,
     };
     return next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
       return next(new UnauthorizedError('Authentication token has expired'));
+    }
+    if (err instanceof UnauthorizedError) {
+      return next(err);
     }
     return next(new UnauthorizedError('Invalid authentication token'));
   }

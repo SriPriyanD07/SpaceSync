@@ -1,16 +1,9 @@
 import crypto from 'crypto';
+import { getMfaEncryptionKey } from '../config/security';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits recommended for GCM
 const AUTH_TAG_LENGTH = 16; // 128 bits
-
-function getDerivedKey(): Buffer {
-  const secretKey =
-    process.env.MFA_ENCRYPTION_KEY ||
-    process.env.JWT_SECRET ||
-    'spacesync_default_mfa_aes256_encryption_key_2026';
-  return crypto.createHash('sha256').update(secretKey).digest();
-}
 
 /**
  * Encrypts an MFA TOTP secret at rest using AES-256-GCM.
@@ -18,7 +11,7 @@ function getDerivedKey(): Buffer {
  */
 export function encryptMfaSecret(plaintextSecret: string): string {
   if (!plaintextSecret) return '';
-  const key = getDerivedKey();
+  const key = getMfaEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
@@ -40,7 +33,7 @@ export function decryptMfaSecret(encryptedPayload: string): string {
   }
 
   const [ivHex, tagHex, ciphertextHex] = parts;
-  const key = getDerivedKey();
+  const key = getMfaEncryptionKey();
   const iv = Buffer.from(ivHex, 'hex');
   const tag = Buffer.from(tagHex, 'hex');
 

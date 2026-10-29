@@ -5,13 +5,32 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authenticator } from 'otplib';
 import { encryptMfaSecret } from '../src/utils/crypto';
+import { getJwtSecret } from '../src/config/security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'spacesync_development_jwt_secret_key_2026_secure';
+const JWT_SECRET = getJwtSecret();
 
 describe('Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite', () => {
-  const adminUser = { id: 'u-adm-01', name: 'Admin Lead', email: 'admin@spacesync.io', role: 'admin' as const };
-  const memberA = { id: 'u-mem-01', name: 'Alice Member', email: 'alice@spacesync.io', role: 'member' as const };
-  const memberB = { id: 'u-mem-02', name: 'Bob Member', email: 'bob@spacesync.io', role: 'member' as const };
+  const adminUser = {
+    id: 'u-adm-01',
+    name: 'Admin Lead',
+    email: 'admin@spacesync.io',
+    role: 'admin' as const,
+    purpose: 'access_token' as const,
+  };
+  const memberA = {
+    id: 'u-mem-01',
+    name: 'Alice Member',
+    email: 'alice@spacesync.io',
+    role: 'member' as const,
+    purpose: 'access_token' as const,
+  };
+  const memberB = {
+    id: 'u-mem-02',
+    name: 'Bob Member',
+    email: 'bob@spacesync.io',
+    role: 'member' as const,
+    purpose: 'access_token' as const,
+  };
 
   const adminToken = jwt.sign(adminUser, JWT_SECRET, { expiresIn: '1h' });
   const memberAToken = jwt.sign(memberA, JWT_SECRET, { expiresIn: '1h' });
@@ -133,6 +152,12 @@ describe('Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite', (
       expect(res.status).toBe(200);
       expect(res.body.mfaRequired).toBe(true);
       expect(res.body.mfaToken).toBeDefined();
+
+      // Verify challenge token contains purpose: 'mfa_challenge'
+      const decoded = jwt.verify(res.body.mfaToken, JWT_SECRET) as any;
+      expect(decoded.purpose).toBe('mfa_challenge');
+      expect(decoded.mfaRequired).toBe(true);
+
       // Crucial: full session JWT token is NOT issued yet
       expect(res.body.token).toBeUndefined();
     });
@@ -143,7 +168,7 @@ describe('Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite', (
       const encrypted = encryptMfaSecret(plaintextSecret);
 
       const mfaChallengeToken = jwt.sign(
-        { id: memberA.id, email: memberA.email, mfaRequired: true },
+        { id: memberA.id, email: memberA.email, purpose: 'mfa_challenge', mfaRequired: true },
         JWT_SECRET,
         { expiresIn: '5m' }
       );
@@ -174,10 +199,11 @@ describe('Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite', (
       expect(res.body.token).toBeDefined();
       expect(res.body.user.email).toBe(memberA.email);
 
-      // Verify issued session token is valid
+      // Verify issued session token has purpose: 'access_token'
       const decoded = jwt.verify(res.body.token, JWT_SECRET) as any;
       expect(decoded.id).toBe(memberA.id);
       expect(decoded.role).toBe('member');
+      expect(decoded.purpose).toBe('access_token');
     });
 
     it('POST /api/auth/mfa/disable requires password confirmation', async () => {
@@ -217,6 +243,150 @@ describe('Q2(b) Multi-Factor Authentication (TOTP MFA) & RBAC Security Suite', (
 
       expect(successRes.status).toBe(200);
       expect(successRes.body.mfa_enabled).toBe(false);
+    });
+  });
+
+  describe('MFA Challenge Token Isolation & Purpose Integrity (Phase 2)', () => {
+    it('allows valid ordinary access token to access authorized endpoint', async () => {
+      jest.spyOn(db, 'query').mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM users WHERE id = $1')) {
+          return { rows: [memberA] } as any;
+        }
+        return { rows: [] } as any;
+      });
+
+      const res = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${memberAToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.email).toBe(memberA.email);
+    });
+
+    it('strictly rejects MFA challenge token when calling ordinary protected endpoints (401 Unauthorized)', async () => {
+      const challengeToken = jwt.sign(
+        { id: memberA.id, email: memberA.email, purpose: 'mfa_challenge', mfaRequired: true },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      const resMe = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${challengeToken}`);
+
+      expect(resMe.status).toBe(401);
+      expect(resMe.body.message).toMatch(/access token required/i);
+
+      const resBookings = await request(app)
+        .post('/api/bookings')
+        .set('Authorization', `Bearer ${challengeToken}`)
+        .send({
+          resource_id: '00000000-0000-0000-0000-000000000001',
+          start_time: '2026-11-01T10:00:00Z',
+          end_time: '2026-11-01T12:00:00Z',
+          purpose: 'Bypass Attempt',
+        });
+
+      expect(resBookings.status).toBe(401);
+      expect(resBookings.body.message).toMatch(/access token required/i);
+    });
+
+    it('strictly rejects MFA challenge token when calling admin-only endpoints (401 Unauthorized)', async () => {
+      const challengeTokenAdmin = jwt.sign(
+        { id: adminUser.id, email: adminUser.email, purpose: 'mfa_challenge', mfaRequired: true },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      const res = await request(app)
+        .get('/api/admin/statistics')
+        .set('Authorization', `Bearer ${challengeTokenAdmin}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/access token required/i);
+    });
+
+    it('rejects expired MFA challenge tokens (401 Unauthorized)', async () => {
+      const expiredChallengeToken = jwt.sign(
+        { id: memberA.id, email: memberA.email, purpose: 'mfa_challenge', mfaRequired: true },
+        JWT_SECRET,
+        { expiresIn: '-1s' } // Expired in the past
+      );
+
+      const res = await request(app)
+        .post('/api/auth/mfa/verify')
+        .send({
+          mfaToken: expiredChallengeToken,
+          totpCode: '123456',
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/expired/i);
+    });
+
+    it('rejects challenge token with wrong purpose or missing mfaRequired claim (401 Unauthorized)', async () => {
+      const wrongPurposeToken = jwt.sign(
+        { id: memberA.id, email: memberA.email, purpose: 'wrong_purpose', mfaRequired: true },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      const res = await request(app)
+        .post('/api/auth/mfa/verify')
+        .send({
+          mfaToken: wrongPurposeToken,
+          totpCode: '123456',
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/token purpose/i);
+    });
+
+    it('rejects ordinary access token passed as mfaToken to /api/auth/mfa/verify (401 Unauthorized)', async () => {
+      const res = await request(app)
+        .post('/api/auth/mfa/verify')
+        .send({
+          mfaToken: memberAToken, // Has purpose: 'access_token', not 'mfa_challenge'
+          totpCode: '123456',
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/mfa challenge token is required/i);
+    });
+
+    it('rejects invalid TOTP code and does NOT issue a session token', async () => {
+      const plaintextSecret = authenticator.generateSecret();
+      const encrypted = encryptMfaSecret(plaintextSecret);
+
+      const challengeToken = jwt.sign(
+        { id: memberA.id, email: memberA.email, purpose: 'mfa_challenge', mfaRequired: true },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+
+      jest.spyOn(db, 'query').mockImplementation(async (sql: string) => {
+        if (sql.includes('FROM users WHERE id = $1')) {
+          return {
+            rows: [{
+              ...memberA,
+              mfa_enabled: true,
+              mfa_secret: encrypted,
+            }],
+          } as any;
+        }
+        return { rows: [] } as any;
+      });
+
+      const res = await request(app)
+        .post('/api/auth/mfa/verify')
+        .send({
+          mfaToken: challengeToken,
+          totpCode: '000000', // Invalid code
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.token).toBeUndefined();
+      expect(res.body.message).toMatch(/invalid totp code/i);
     });
   });
 

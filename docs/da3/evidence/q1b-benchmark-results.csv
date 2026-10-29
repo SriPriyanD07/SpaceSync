@@ -1,14 +1,15 @@
-Metric,One Backend Instance,Three Backend Instances,Difference,Change (%)
-Target URL,http://backend-1:5000/api/resources,http://nginx:80/api/resources,--,--
-Benchmark Tool,ApacheBench 2.3,ApacheBench 2.3,--,--
-Concurrency Level,15,15,0,0.0%
-Total Requests,1000,1000,0,0.0%
-Successful Requests,1000,1000,0,0.0%
-Failed Requests,0,0,0,0.0%
-Total Duration (seconds),12.086,5.821,-6.265,-51.84%
-Requests Per Second (RPS),82.74,171.79,+89.05,+107.63%
-Average Response Time (ms),181.289,87.315,-93.974,-51.84%
-Median Latency (ms),172,81,-91,-52.91%
-95th Percentile Latency (ms),200,90,-110,-55.00%
-99th Percentile Latency (ms),444,346,-98,-22.07%
-Transfer Rate (KB/s),253.07,534.50,+281.43,+111.21%
+Metric,Single_Instance,Three_Instances,Delta,Relative_Change_Percent
+Total_Requests,1000,1000,0,0.0%
+Concurrency_Level,15,15,0,0.0%
+Successful_Requests,1000,1000,0,0.0%
+Failed_Requests,0,0,0,0.0%
+Total_Time_Seconds,12.508,5.842,-6.666,-53.29%
+Requests_Per_Second,79.95,171.17,+91.22,+114.10%
+Mean_Latency_ms,187.620,87.634,-99.986,-53.29%
+Concurrent_Latency_ms,12.508,5.842,-6.666,-53.29%
+p50_Latency_ms,177,81,-96,-54.24%
+p75_Latency_ms,186,83,-103,-55.38%
+p90_Latency_ms,198,88,-110,-55.56%
+p95_Latency_ms,221,99,-122,-55.20%
+p99_Latency_ms,471,337,-134,-28.45%
+Transfer_Rate_KBps,244.53,532.56,+288.03,+117.79%

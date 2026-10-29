@@ -1,7 +1,7 @@
 {
   "assignment": "BACSE344 Cloud Infrastructure and Architecture - Digital Assignment 3",
   "task": "Question 1(b) - Performance Benchmark (1 Instance vs 3 Instances)",
-  "timestamp": "2026-10-29T14:38:55Z",
+  "timestamp": "2026-10-29T15:38:00Z",
   "endpoint": "GET /api/resources",
   "total_requests": 1000,
   "concurrency_level": 15,
@@ -15,51 +15,54 @@
   "single_instance": {
     "target_url": "http://backend-1:5000/api/resources",
     "command": "docker run --rm --network spacesync-network httpd:alpine ab -n 1000 -c 15 http://backend-1:5000/api/resources",
-    "time_taken_seconds": 12.086,
+    "raw_output_file": "docs/da3/evidence/q1b-raw-1instance.txt",
+    "time_taken_seconds": 12.508,
     "complete_requests": 1000,
     "failed_requests": 0,
-    "requests_per_second": 82.74,
-    "time_per_request_mean_ms": 181.289,
-    "time_per_request_concurrent_ms": 12.086,
-    "transfer_rate_kbytes_sec": 253.07,
+    "requests_per_second": 79.95,
+    "time_per_request_mean_ms": 187.620,
+    "time_per_request_concurrent_ms": 12.508,
+    "transfer_rate_kbytes_sec": 244.53,
     "latency_percentiles_ms": {
-      "p50": 172,
-      "p66": 180,
-      "p75": 184,
-      "p80": 187,
-      "p90": 194,
-      "p95": 200,
-      "p98": 217,
-      "p99": 444,
-      "p100": 496
+      "p50": 177,
+      "p66": 182,
+      "p75": 186,
+      "p80": 189,
+      "p90": 198,
+      "p95": 221,
+      "p98": 303,
+      "p99": 471,
+      "p100": 537
     }
   },
   "three_instances": {
     "target_url": "http://nginx:80/api/resources (proxying to backend-1, backend-2, backend-3)",
     "command": "docker run --rm --network spacesync-network httpd:alpine ab -n 1000 -c 15 http://nginx/api/resources",
-    "time_taken_seconds": 5.821,
+    "raw_output_file": "docs/da3/evidence/q1b-raw-3instances.txt",
+    "time_taken_seconds": 5.842,
     "complete_requests": 1000,
     "failed_requests": 0,
-    "requests_per_second": 171.79,
-    "time_per_request_mean_ms": 87.315,
-    "time_per_request_concurrent_ms": 5.821,
-    "transfer_rate_kbytes_sec": 534.50,
+    "requests_per_second": 171.17,
+    "time_per_request_mean_ms": 87.634,
+    "time_per_request_concurrent_ms": 5.842,
+    "transfer_rate_kbytes_sec": 532.56,
     "latency_percentiles_ms": {
       "p50": 81,
-      "p66": 83,
-      "p75": 84,
+      "p66": 82,
+      "p75": 83,
       "p80": 84,
-      "p90": 86,
-      "p95": 90,
-      "p98": 106,
-      "p99": 346,
-      "p100": 390
+      "p90": 88,
+      "p95": 99,
+      "p98": 125,
+      "p99": 337,
+      "p100": 387
     }
   },
   "comparison": {
-    "throughput_improvement_percent": 107.63,
-    "response_time_reduction_percent": 51.84,
-    "total_duration_reduction_percent": 51.84,
-    "evaluation": "Adding two additional backend instances behind Nginx more than doubled throughput (+107.63% RPS) and reduced mean response latency by more than half (51.84% drop). Under concurrency 15, the single instance pool (DB_POOL_MAX=7) queued concurrent queries, whereas the 3-instance cluster provided 21 aggregate connections, eliminating connection wait queues."
+    "throughput_improvement_percent": 114.10,
+    "response_time_reduction_percent": 53.29,
+    "total_duration_reduction_percent": 53.29,
+    "transfer_rate_increase_percent": 117.79,
+    "evaluation": "Adding two additional backend instances behind Nginx more than doubled throughput (+114.10% RPS) and reduced mean response latency by 53.29%. Under concurrency 15, the single instance pool (DB_POOL_MAX=7) queued concurrent queries, whereas the 3-instance cluster provided 21 aggregate connections, eliminating connection wait queues."
   }
 }

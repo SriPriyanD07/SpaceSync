@@ -25,14 +25,14 @@ This report documents the end-to-end design, implementation, execution, verifica
  Component                         Status       Key Result / Metric
 ----------------------------------------------------------------------------------------
  Q1(a) Multi-Instance Deployment   VERIFIED     3 backend containers behind Nginx on :8081
- Q1(b) Performance Benchmarking    VERIFIED     171.79 RPS (3 inst) vs 82.74 RPS (1 inst)
+ Q1(b) Performance Benchmarking    VERIFIED     171.17 RPS (3 inst) vs 79.95 RPS (1 inst) (+114.1%)
  Q1(c) Resilience & Failover       VERIFIED     0 dropped requests (100% success during stop)
  Q1(d) Architecture & Cloud-Burst  VERIFIED     Mermaid & SVG diagrams + PgBouncer bursting
- Q2(a) Password Security & Hashing VERIFIED     bcrypt cost 12, zero plaintext, AES-256-GCM
- Q2(b) TOTP MFA & RBAC Access      VERIFIED     RFC 6238 TOTP, QR codes, 401/403 RBAC guards
+ Q2(a) Password Security & Hashing VERIFIED     bcrypt cost 12, zero plaintext, AES-256-GCM, no fallbacks
+ Q2(b) TOTP MFA & RBAC Access      VERIFIED     RFC 6238 TOTP, QR codes, isolated challenge tokens, RBAC
  Q2(c) Docker Hardening & Trivy    VERIFIED     61.5% vuln reduction (104 -> 40), USER node
  Q2(d) Threat Modeling & GDPR      VERIFIED     Threat agent matrix, GDPR Art 5(1)(f) & 32
- Automated Backend Test Suite      VERIFIED     40/40 Passing Unit & Integration Tests
+ Automated Backend Test Suite      VERIFIED     51/51 Passing Unit & Integration Tests (4 suites)
 ========================================================================================
 ```
 
@@ -54,23 +54,24 @@ This report documents the end-to-end design, implementation, execution, verifica
 
 ### Q1(b): Benchmark Comparison (1 Instance vs. 3 Instances)
 - **Tool:** ApacheBench (`ab` v2.3 in `httpd:alpine` container executing over the internal Docker network `spacesync-network`).
-- **Workload:** 1,000 total HTTP GET requests to `/api/resources` with concurrency level $c = 10$.
+- **Workload:** 1,000 total HTTP GET requests to `/api/resources` with concurrency level $c = 15$.
 - **Empirical Findings:**
-  - **1 Instance Baseline:** $82.74\text{ requests/sec}$, mean latency $181.29\text{ ms}$, p95 latency $223\text{ ms}$, p99 latency $268\text{ ms}$.
-  - **3 Instances Load-Balanced:** $171.79\text{ requests/sec}$, mean latency $87.32\text{ ms}$, p95 latency $112\text{ ms}$, p99 latency $142\text{ ms}$.
-  - **Speedup & Latency Improvement:** Throughput increased by **$+107.6\%$ ($2.08\times$)**, while average latency was reduced by **$-51.8\%$**.
+  - **1 Instance Baseline:** $79.95\text{ requests/sec}$, mean latency $187.62\text{ ms}$, p50 $177\text{ ms}$, p95 $221\text{ ms}$, p99 $471\text{ ms}$, total duration $12.51\text{ s}$.
+  - **3 Instances Load-Balanced:** $171.17\text{ requests/sec}$, mean latency $87.63\text{ ms}$, p50 $81\text{ ms}$, p95 $99\text{ ms}$, p99 $337\text{ ms}$, total duration $5.84\text{ s}$.
+  - **Speedup & Latency Improvement:** Throughput increased by **$+114.10\%$ ($2.14\times$)**, while average latency was reduced by **$-53.29\%$**.
   - Detailed report: [`docs/da3/evidence/q1b-benchmark-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-report.md).
-  - Raw datasets: [`q1b-benchmark-results.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.json), [`q1b-benchmark-results.csv`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.csv).
+  - Raw command outputs: [`q1b-raw-1instance.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-raw-1instance.txt), [`q1b-raw-3instances.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-raw-3instances.txt).
+  - Datasets: [`q1b-benchmark-results.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.json), [`q1b-benchmark-results.csv`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.csv).
 
 ---
 
 ### Q1(c): Failure Handling & Resilient Failover Experiment
 - **Harness:** [`scripts/test-failure-handling.js`](file:///d:/PROJECTS/space/scripts/test-failure-handling.js) simulating sustained concurrent load (600 requests, $c = 10$) while stopping `spacesync-backend-2` mid-flight at request #180.
 - **Baseline Configuration (Passive Nginx):**
-  - Result: 15 dropped requests (`HTTP 504 Gateway Timeout`), $97.5\%$ success rate, average latency spiked to $378.1\text{ ms}$.
+  - Result: 15 dropped requests (`HTTP 504 Gateway Timeout`), $97.5\%$ success rate (585/600), duration $14.25\text{ s}$, average latency $224.45\text{ ms}$.
 - **Resilient Configuration (Active Failover):**
   - Directives: `proxy_next_upstream error timeout http_502 http_503; proxy_connect_timeout 2s; proxy_read_timeout 3s;`.
-  - Result: **0 dropped requests**, **$100.0\%$ success rate (600/600)**, average latency maintained at $58.4\text{ ms}$.
+  - Result: **0 dropped requests**, **$100.0\%$ success rate (600/600)**, duration $7.86\text{ s}$, average latency maintained at $128.93\text{ ms}$ (a $42.56\%$ latency reduction with zero dropouts).
   - Container State Tracking: Verified `running` before start, confirmed `stopped` in $1,210\text{ ms}$, and cleanly restored to `running` post-test.
   - Detailed report: [`docs/da3/evidence/q1c-failure-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q1c-failure-report.md).
   - Raw datasets: [`raw-baseline.json`](file:///d:/PROJECTS/space/docs/da3/evidence/raw-baseline.json), [`raw-resilience.json`](file:///d:/PROJECTS/space/docs/da3/evidence/raw-resilience.json).
@@ -106,7 +107,10 @@ This report documents the end-to-end design, implementation, execution, verifica
   - Explicitly excluded from all JSON serializations (`POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`).
   - Self-assigning `role: 'admin'` during registration is blocked with `403 Forbidden`.
 - **Secret Encryption at Rest:** `mfa_secret` encrypted at rest using **AES-256-GCM** with 12-byte initialization vectors and 16-byte authentication tags.
-- **Automated Tests:** 8/8 passing tests in [`backend/tests/passwordSecurity.test.ts`](file:///d:/PROJECTS/space/backend/tests/passwordSecurity.test.ts).
+- **Unsafe Secret Fallback Remediation:**
+  - Silent fallback secrets are completely disallowed in production mode.
+  - `JWT_SECRET` and `MFA_ENCRYPTION_KEY` require at least 32 cryptographically secure characters; placeholder tokens (e.g. `change_in_prod`, `development`) are rejected at startup.
+- **Automated Tests:** 12/12 passing tests in [`backend/tests/passwordSecurity.test.ts`](file:///d:/PROJECTS/space/backend/tests/passwordSecurity.test.ts).
 - Detailed report: [`docs/da3/evidence/q2a/q2a-password-security-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q2a/q2a-password-security-report.md).
 
 ---
@@ -119,11 +123,15 @@ This report documents the end-to-end design, implementation, execution, verifica
   - `POST /api/auth/mfa/disable`: Requires current password verification before disabling MFA.
   - `POST /api/auth/login`: MFA-enrolled accounts receive `{ mfaRequired: true, mfaToken: "..." }` instead of full access JWT.
   - `POST /api/auth/mfa/verify`: Exchanges `{ mfaToken, totpCode }` for full session JWT.
+- **MFA Challenge Token Isolation (Security Enforcement):**
+  - Challenge tokens are stamped with `purpose: 'mfa_challenge'` and a short 5-minute expiration.
+  - `middleware/auth.ts` strictly rejects any token with `purpose: 'mfa_challenge'` or `mfaRequired: true` from accessing ordinary protected APIs (`401 Unauthorized`).
+  - `/api/auth/mfa/verify` strictly accepts only challenge tokens (`purpose: 'mfa_challenge'`) and rejects ordinary access tokens.
 - **Role-Based Access Control (RBAC):**
   - Unauthenticated requests to protected routes return `401 Unauthorized`.
   - Members attempting admin actions (`POST /api/resources`, `DELETE /api/resources/:id`, `GET /api/admin/statistics`) return `403 Forbidden`.
   - Members attempting to view or cancel another member's booking return `403 Forbidden`.
-- **Automated Tests:** 11/11 passing tests in [`backend/tests/mfaAndRbac.test.ts`](file:///d:/PROJECTS/space/backend/tests/mfaAndRbac.test.ts).
+- **Automated Tests:** 18/18 passing tests in [`backend/tests/mfaAndRbac.test.ts`](file:///d:/PROJECTS/space/backend/tests/mfaAndRbac.test.ts).
 - Detailed report: [`docs/da3/evidence/q2b/q2b-mfa-rbac-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q2b/q2b-mfa-rbac-report.md).
 
 ---
@@ -144,6 +152,7 @@ This report documents the end-to-end design, implementation, execution, verifica
   - **LOW:** Reduced from 37 to **3** (-91.9%)
   - **UNKNOWN:** Reduced from 2 to **0** (-100.0%)
   - **TOTAL:** Reduced from **104 down to 40 (-61.5% overall reduction)**.
+- **Analysis of Remaining Findings:** All Alpine OS vulnerabilities reduced to 0; remaining 1 CRITICAL and 21 HIGH findings reside exclusively within internal Node.js npm package manager CLI files (`/usr/local/lib/node_modules/npm/...`) and Swagger build tools, which are non-exploitable at runtime since `node dist/index.js` executes directly without npm under non-root privileges.
 - Detailed report: [`docs/da3/evidence/q2c/q2c-docker-hardening-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/q2c-docker-hardening-report.md).
 - Scan artifacts: [`initial-scan.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/initial-scan.txt), [`initial-scan.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/initial-scan.json), [`hardened-scan.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/hardened-scan.txt), [`hardened-scan.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q2c/hardened-scan.json).
 
@@ -166,6 +175,8 @@ This report documents the end-to-end design, implementation, execution, verifica
 | :--- | :--- | :--- | :--- |
 | **Q1(a)** | Markdown Report | Multi-Instance Verification Evidence | [`docs/da3/evidence/q1a-verification-evidence.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q1a-verification-evidence.md) |
 | **Q1(b)** | Markdown Report | Performance Benchmarking Analysis | [`docs/da3/evidence/q1b-benchmark-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-report.md) |
+| **Q1(b)** | Raw Output | ApacheBench Raw Console Output (1 Instance) | [`docs/da3/evidence/q1b-raw-1instance.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-raw-1instance.txt) |
+| **Q1(b)** | Raw Output | ApacheBench Raw Console Output (3 Instances) | [`docs/da3/evidence/q1b-raw-3instances.txt`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-raw-3instances.txt) |
 | **Q1(b)** | JSON Data | Raw ApacheBench Metrics (1 vs 3 instances) | [`docs/da3/evidence/q1b-benchmark-results.json`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.json) |
 | **Q1(b)** | CSV Data | Tabular Benchmark Breakdown | [`docs/da3/evidence/q1b-benchmark-results.csv`](file:///d:/PROJECTS/space/docs/da3/evidence/q1b-benchmark-results.csv) |
 | **Q1(c)** | Markdown Report | Failure Handling & Resilience Report | [`docs/da3/evidence/q1c-failure-report.md`](file:///d:/PROJECTS/space/docs/da3/evidence/q1c-failure-report.md) |
@@ -198,10 +209,15 @@ Before final commit, the following end-to-end verification tests were executed:
 1. **Full Backend Test Suite:**
    ```bash
    $ npm --prefix backend test
+   PASS tests/passwordSecurity.test.ts (12 passed)
+   PASS tests/authAndResources.test.ts (15 passed)
+   PASS tests/doubleBooking.test.ts (6 passed)
+   PASS tests/mfaAndRbac.test.ts (18 passed)
+
    Test Suites: 4 passed, 4 total
-   Tests:       40 passed, 40 total
+   Tests:       51 passed, 51 total
    Snapshots:   0 total
-   Time:        8.194 s
+   Time:        9.244 s
    ```
 2. **Backend TypeScript Compilation:**
    ```bash

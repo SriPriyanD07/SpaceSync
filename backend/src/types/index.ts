@@ -56,11 +56,21 @@ export interface Booking {
   user_email?: string;
 }
 
+export type TokenPurpose = 'access_token' | 'mfa_challenge';
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  purpose?: TokenPurpose;
+}
+
+export interface MfaChallengePayload {
+  id: string;
+  email: string;
+  purpose: 'mfa_challenge';
+  mfaRequired: true;
 }
 
 export interface AuthenticatedRequest extends Request {
